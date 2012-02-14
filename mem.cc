@@ -85,7 +85,7 @@ void store_chunk(void *addr, Chunk &chunk)
   memcpy(addr, &chunk, sizeof(chunk));
 }
 
-void *initializing_malloc(size_t size)
+void *malloc_init(size_t size)
 {
   static Dataspace ds;
 
@@ -109,13 +109,16 @@ void *initializing_malloc(size_t size)
 
 void *malloc(size_t size) throw ()
 {
-  printf("malloc %i", size);
-  if (malloc_state.biggest_free_chunk_size < size)
-    return malloc_allocate_and_use(size);
+  printf("malloc %i at ", size);
+  void *addr;
+  if (malloc_state.biggest_free_chunk_size > size)
+    addr = malloc_find_and_use(size);
   else if (!malloc_state.free_head)
-    return initializing_malloc(size);
+    addr = malloc_init(size);
   else
-    return malloc_find_and_use(size);
+    malloc_allocate_and_use(size);
+  printf("%p\n", addr);
+  return addr;
 }
 
 void *malloc_allocate_and_use(size_t size)
@@ -146,20 +149,23 @@ Dataspace *create_dataspace(size_t size)
   return 0;
 }
 
-  /*
-   L4::Cap<L4Re::Dataspace> ds
-     = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
-
-   if (!ds.is_valid()) return 0;
-   long err = L4Re::Env::env()->mem_alloc()->alloc(size, ds);
-   if (err) return 0;
-   void *addr = 0;
-   err = L4Re::Env::env()->rm()
-     ->attach(&addr, size, L4Re::Rm::Search_addr, ds, 0);
-   if (err) return 0;
-   return addr;
-  */
-
+/*
+void *malloc(size_t size) throw ()
+{
+  printf("malloc %i\n", size);
+  L4::Cap<L4Re::Dataspace> ds
+    = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
+  
+  if (!ds.is_valid()) return 0;
+  long err = L4Re::Env::env()->mem_alloc()->alloc(size, ds);
+  if (err) return 0;
+  void *addr = 0;
+  err = L4Re::Env::env()->rm()
+    ->attach(&addr, size, L4Re::Rm::Search_addr, ds, 0);
+  if (err) return 0;
+  return addr;
+}
+*/
 
 void free(void *p) throw()
 {
