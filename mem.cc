@@ -33,31 +33,37 @@
   3. -> 1 or 2 unused bits in Chunk.addr and Chunk.size!!
  */
 
-struct Dataspace {
-  void *addr;
-  size_t size;
-  size_t free;
-  Dataspace *next;
-};
-
 ////
-
-struct Chunk;
-
-struct LinkedChunk {
-  void *addr;
-  Chunk *next;
-};
 
 struct Chunk {
   size_t size;
-  void *addr;
+  size_t addr;
 
-  bool is_free() { return size & 1; }
-  void free() { ++size; }
-  void use() { --size; }
-  Chunk *free_next() { return ((LinkedChunk*)addr)->next; }
-  void  *free_addr() { return ((LinkedChunk*)addr)->addr; }
+  bool is_used() {
+    return size & 1;
+  }
+  bool is_garbage() {
+    return addr & 1;
+  }
+  Chunk &set_used() {
+    size = size | 1;
+    return *this;
+  }
+  void set_garbage() {
+    addr = addr | 1;
+  }
+  Chunk *link() {
+    return (Chunk*)addr;
+  }
+  Chunk *next() {
+    return (Chunk*)(link()->size);
+  }
+  size_t link_addr() {
+    return link()->addr;
+  }
+  void print() {
+    printf("addr %x\nsize %x\n", addr, size);
+  }
 };
 
 ////
@@ -67,9 +73,9 @@ struct G {
   size_t allocate_size_step;
   size_t min_allocate_size;
   size_t biggest_free_chunk_size;
-  Dataspace *app_space;
-  Dataspace *chunk_space;
-  Dataspace *link_space;;
+  Chunk *app_space;
+  Chunk *chunk_space;
+  unsigned chunks;
   Chunk *free;
 } G = {
   false,
@@ -78,97 +84,113 @@ struct G {
   0,
   NULL,
   NULL,
-  NULL,
+  0,
   NULL
 };
 
-void		*malloc_allocate_and_use(size_t size);
-void		*malloc_find_and_use(size_t size);
-Dataspace	*allocate_dataspace(size_t size);
-Chunk		&create_free_chunk(Dataspace *ds, size_t size);
-void		 use_chunk(Chunk &chunk);
-Chunk		&find_best_free_chunk(size_t size);
-void		 split_chunk(Chunk &chunk, size_t size);
+/////////////////////
 
-int allocate_dataspace(Dataspace &ds, size_t size)
+Chunk &new_chunk(size_t addr = 0, size_t size = 0)
+{
+  Chunk *chunks = (Chunk*)G.chunk_space->addr;
+  Chunk &chunk = chunks[G.chunks++];
+  chunk.addr = addr;
+  chunk.size = size;
+  return chunk;
+}
+
+Chunk &new_linked_chunk(size_t addr, size_t size, size_t next = NULL)
+{ 
+  Chunk &link = new_chunk(addr, next);
+  Chunk &chunk = new_chunk((size_t)&link, size);
+  return chunk;
+}
+
+
+//////////////
+
+int allocate_dataspace(size_t &addr, size_t &size, size_t needed_size)
 {
   L4::Cap<L4Re::Dataspace> ds_cap =
     L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
   if (!ds_cap.is_valid()) return -1;
 
-  if (size <= G.min_allocate_size)
-    ds.size = G.min_allocate_size;
+  if (needed_size <= G.min_allocate_size)
+    size = G.min_allocate_size;
   else
-    ds.size = G.allocate_size_step * ((size / G.allocate_size_step) + 1);
+    size = G.allocate_size_step * (needed_size / G.allocate_size_step);
 
   long err =
-    L4Re::Env::env()->mem_alloc()->alloc(ds.size, ds_cap);
+    L4Re::Env::env()->mem_alloc()->alloc(size, ds_cap);
   if (err) return -2;
 
   err = L4Re::Env::env()->rm()
-    ->attach(&ds.addr, ds.size, L4Re::Rm::Search_addr, ds_cap, 0);
+    ->attach((void**)&addr, size, L4Re::Rm::Search_addr, ds_cap, 0);
   if (err) return -3;
 
   return 0;
 }
 
-void store_chunk(void *addr, Chunk &chunk)
-{
-  memcpy(addr, &chunk, sizeof(chunk));
-}
-
 void *malloc_init(size_t size)
 {
   printf("init\n");
-  static Dataspace app_ds;
-  static Dataspace chunk_ds;
-  static Dataspace link_ds;
-
+  size_t app_space_addr, app_space_size, chunk_space_addr, chunk_space_size;
   int err;
 
-  err = allocate_dataspace(app_ds, size);
-  if (err) return 0;
-  err = allocate_dataspace(chunk_ds, G.min_allocate_size);
-  if (err) return 0;
-  err = allocate_dataspace(link_ds, G.min_allocate_size);
+  err = allocate_dataspace(app_space_addr, app_space_size, size);
   if (err) return 0;
 
-  app_ds.free = app_ds.size - size;
+  err = allocate_dataspace(chunk_space_addr, chunk_space_size, G.min_allocate_size);
+  if (err) return 0;
 
+  printf("app_space_addr %p\nchunk_space_addr %p\n", app_space_addr, chunk_space_addr);
 
-  Chunk *chunks = (Chunk*)chunk_ds.addr;
-  LinkedChunk *links = (LinkedChunk*)link_ds.addr;
+  Chunk *chunks = (Chunk*)chunk_space_addr;
 
-  Chunk &used = chunks[0];
-  used.size = size;
-  used.addr = app_ds.addr;
+  Chunk &chunk_space_link = chunks[G.chunks++];
+  chunk_space_link.addr = chunk_space_addr;
+  chunk_space_link.size = NULL;
 
-  LinkedChunk &free_link = links[0];
-  free_link.addr = (void*)((size_t)app_ds.addr + size);
-  free_link.next = NULL;
+  Chunk &chunk_space = chunks[G.chunks++];
+  chunk_space.addr = (size_t)&chunk_space_link;
+  chunk_space.size = chunk_space_size;
+  G.chunk_space = &chunk_space;
 
-  Chunk &free = chunks[1];
-  free.size = app_ds.free;
-  free.addr = &free_link;
-  free.free();
-
-
+  Chunk &app_space = new_linked_chunk(app_space_addr, app_space_size);
+  Chunk &used = new_chunk(app_space.link_addr(), size).set_used();
+  Chunk &free = new_linked_chunk(app_space.link_addr() + size, app_space.size - size);
+  
   G.biggest_free_chunk_size = free.size;
   G.free = &free;
+  G.app_space = &app_space;
   G.initialized = true;
 
-  return used.addr;
+  return (void*)used.addr;
+}
+
+unsigned count_linked_chunks(Chunk *chunk)
+{
+  unsigned n = 0;
+  while (chunk) {
+    ++n;
+    chunk = chunk->next();
+  }
+  return n;
 }
 
 void print_some()
 {
-
+  //  printf("free        %p\n", G.free);
+  printf("free        %i\n", count_linked_chunks(G.free));
+  //  printf("app_space   %p\n", G.app_space);
+  printf("app_space   %i\n", count_linked_chunks(G.app_space));
+  printf("chunk_space %i\n", count_linked_chunks(G.chunk_space));
 }
 
 void *malloc_allocate_and_use(size_t size)
 {
   printf("allocate and use\n");
-  /*Dataspace *ds = allocate_dataspace(size);
+  /*Space *ds = allocate_dataspace(size);
   if (!ds) return 0;
   Chunk &chunk = create_free_chunk(ds, size);
   use_chunk(chunk);
@@ -186,7 +208,7 @@ void find_best_free_chunk(size_t size, Chunk *&prev_best, Chunk *&best)
   size_t best_diff = -1;
   while (free) {
     if (free->size > size) {
-      size_t diff = free->size - size - 1;
+      size_t diff = free->size - size;
       if (diff <= best_diff) {
 	best = free;
 	best_diff = diff;
@@ -195,7 +217,7 @@ void find_best_free_chunk(size_t size, Chunk *&prev_best, Chunk *&best)
       }
     }
     prev = free;
-    free = free->free_next();
+    free = free->next();
   }
 }
 
@@ -205,12 +227,12 @@ void *malloc_find_and_use(size_t size)
 
   Chunk *prev, *best;
   find_best_free_chunk(size, prev, best);
-  /*
-  if (chunk.size > size)
-    split_chunk(chunk, size);
-  use_chunk(chunk);
-  return chunk.addr;
-  */
+  if (best->size > size) {
+    Chunk &used = new_chunk(best->link_addr(), size);
+    best->addr = best->link_addr() + size;
+    best->size -= size;
+    return (void*)used.addr;
+  }
   return 0;
 }
 
@@ -230,30 +252,12 @@ void *malloc(size_t size) throw ()
   else
     addr = malloc_allocate_and_use(size);
 
-  printf("malloc %i at %p", size, addr);
+  printf("malloc %i at %p\n", size, addr);
   print_some();
   printf("<<<<<<\n");
 
   return addr;
 }
-
-/*
-void *malloc(size_t size) throw ()
-{
-  printf("malloc %i\n", size);
-  L4::Cap<L4Re::Dataspace> ds
-    = L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
-  
-  if (!ds.is_valid()) return 0;
-  long err = L4Re::Env::env()->mem_alloc()->alloc(size, ds);
-  if (err) return 0;
-  void *addr = 0;
-  err = L4Re::Env::env()->rm()
-    ->attach(&addr, size, L4Re::Rm::Search_addr, ds, 0);
-  if (err) return 0;
-  return addr;
-}
-*/
 
 void free(void *p) throw()
 {
