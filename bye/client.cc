@@ -25,6 +25,7 @@ int main()
   int *a = new int;
   int *b = new int;
   char *c = new char[4096 - 12];
+  int *d = new int;
   L4::Cap<void> server = L4Re::Env::env()->get_cap<void>("bye_server");
   if (!server.is_valid())
     {
