@@ -174,23 +174,26 @@ void *malloc_init(size_t size)
   return (void*)used.addr;
 }
 
-unsigned count_linked_chunks(Chunk *chunk)
+void count_linked_chunks(Chunk *chunk, unsigned &n, unsigned &size)
 {
-  unsigned n = 0;
+  n = 0;
+  size = 0;
   while (chunk) {
     ++n;
+    size += chunk->_size();
     chunk = chunk->next();
   }
-  return n;
 }
 
 void print_some()
 {
-  //  printf("free        %p\n", G.free);
-  printf("free        %i\n", count_linked_chunks(G.free));
-  //  printf("app_space   %p\n", G.app_space);
-  printf("app_space   %i\n", count_linked_chunks(G.app_space));
-  printf("chunk_space %i\n", count_linked_chunks(G.chunk_space));
+  unsigned n, size;
+  count_linked_chunks(G.free, n, size);
+  printf("free        %i %i\n", n, size);
+  count_linked_chunks(G.app_space, n, size);
+  printf("app_space   %i %i\n", n, size);
+  count_linked_chunks(G.chunk_space, n, size);
+  printf("chunk_space %i %i\n", n, size);
 }
 
 void *malloc_allocate_and_use(size_t size)
