@@ -236,7 +236,7 @@ void *malloc_find_and_use(size_t size)
 
   Chunk *prev, *best;
   find_best_free_chunk(size, prev, best);
-  if (best->size > size) {
+  if (best->_size() > size) {
     Chunk &used = new_chunk(best->addr, size);
     best->_set(best->addr + size, best->_size() - size);
     return (void*)used.addr;
