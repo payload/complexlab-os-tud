@@ -22,6 +22,9 @@ int bye_call(L4::Cap<void> const &server, const char *str)
 
 int main()
 {
+  int *a = new int;
+  int *b = new int;
+  char *c = new char[4096 - 12];
   L4::Cap<void> server = L4Re::Env::env()->get_cap<void>("bye_server");
   if (!server.is_valid())
     {
