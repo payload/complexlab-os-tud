@@ -17,6 +17,22 @@
 #include <l4/re/env>
 #include <l4/sys/consts.h>
 
+/*
+  estimated malloc usage
+  1. way more used than free chunks
+  2. sequential memory usage
+  2.1. don't interleave app data with malloc data
+  2.2. multiple mallocs should use sequential free chunks
+  2.3. also sequential free chunks?
+  3. common malloc size allows alignment for 2 or 4 bytes
+
+  1. -> used chunks should be small, free chunks could be bigger
+  2.1. -> different dataspaces for app and malloc data
+  2.2. -> malloc sessions, based on size, time/counter, free() calls
+  2.3. -> optimize for sequential free chunks? (linked list of arrays)
+  3. -> 1 or 2 unused bits in Chunk.addr and Chunk.size!!
+ */
+
 struct Dataspace {
   void *addr;
   size_t size;
@@ -24,24 +40,43 @@ struct Dataspace {
   Dataspace *next;
 };
 
-struct Chunk {
-  size_t size;
+////
+
+struct Chunk;
+
+struct LinkedChunk {
+  void *addr;
   Chunk *next;
 };
 
-struct malloc_state {
+struct Chunk {
+  size_t size;
+  void *addr;
+
+  bool is_free() { return size & 1; }
+  void free() { ++size; }
+  void use() { --size; }
+  Chunk *free_next() { return ((LinkedChunk*)addr)->next; }
+  void  *free_addr() { return ((LinkedChunk*)addr)->addr; }
+};
+
+////
+
+struct G {
   bool initialized;
   size_t allocate_size_step;
   size_t min_allocate_size;
   size_t biggest_free_chunk_size;
-  Dataspace *ds_head;
-  Chunk *used_head;
-  Chunk *free_head;
-} malloc_state = {
+  Dataspace *app_space;
+  Dataspace *chunk_space;
+  Dataspace *link_space;;
+  Chunk *free;
+} G = {
   false,
   L4_PAGESIZE,
   L4_PAGESIZE,
   0,
+  NULL,
   NULL,
   NULL,
   NULL
@@ -61,13 +96,10 @@ int allocate_dataspace(Dataspace &ds, size_t size)
     L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
   if (!ds_cap.is_valid()) return -1;
 
-  if (size < malloc_state.min_allocate_size)
-    ds.size =
-      malloc_state.min_allocate_size;
+  if (size <= G.min_allocate_size)
+    ds.size = G.min_allocate_size;
   else
-    ds.size =
-      malloc_state.allocate_size_step *
-      ((size / malloc_state.allocate_size_step) + 1);
+    ds.size = G.allocate_size_step * ((size / G.allocate_size_step) + 1);
 
   long err =
     L4Re::Env::env()->mem_alloc()->alloc(ds.size, ds_cap);
@@ -87,43 +119,56 @@ void store_chunk(void *addr, Chunk &chunk)
 
 void *malloc_init(size_t size)
 {
-  static Dataspace ds;
+  printf("init\n");
+  static Dataspace app_ds;
+  static Dataspace chunk_ds;
+  static Dataspace link_ds;
 
-  // allocate at least enough to have some bytes free afterwards
-  int err = allocate_dataspace(ds, size + 2*sizeof(Chunk) + 1);
+  int err;
+
+  err = allocate_dataspace(app_ds, size);
+  if (err) return 0;
+  err = allocate_dataspace(chunk_ds, G.min_allocate_size);
+  if (err) return 0;
+  err = allocate_dataspace(link_ds, G.min_allocate_size);
   if (err) return 0;
 
-  Chunk free = { ds.size - 2*sizeof(Chunk) - size, NULL };
-  store_chunk(ds.addr, free);
-  Chunk used = { size, NULL };
-  void *used_addr = (void*)((size_t)ds.addr + ds.size - sizeof(Chunk) - size);
-  store_chunk(used_addr, used);
-  ds.free = ds.size - 2*sizeof(Chunk);
+  app_ds.free = app_ds.size - size;
 
-  malloc_state.ds_head = &ds;
-  malloc_state.free_head = &free;
-  malloc_state.biggest_free_chunk_size = free.size;
 
-  return (void*)((size_t)used_addr + sizeof(used));
+  Chunk *chunks = (Chunk*)chunk_ds.addr;
+  LinkedChunk *links = (LinkedChunk*)link_ds.addr;
+
+  Chunk &used = chunks[0];
+  used.size = size;
+  used.addr = app_ds.addr;
+
+  LinkedChunk &free_link = links[0];
+  free_link.addr = (void*)((size_t)app_ds.addr + size);
+  free_link.next = NULL;
+
+  Chunk &free = chunks[1];
+  free.size = app_ds.free;
+  free.addr = &free_link;
+  free.free();
+
+
+  G.biggest_free_chunk_size = free.size;
+  G.free = &free;
+  G.initialized = true;
+
+  return used.addr;
 }
 
-void *malloc(size_t size) throw ()
+void print_some()
 {
-  printf("malloc %i at ", size);
-  void *addr;
-  if (malloc_state.biggest_free_chunk_size > size)
-    addr = malloc_find_and_use(size);
-  else if (!malloc_state.free_head)
-    addr = malloc_init(size);
-  else
-    malloc_allocate_and_use(size);
-  printf("%p\n", addr);
-  return addr;
+
 }
 
 void *malloc_allocate_and_use(size_t size)
 {
-  /*  Dataspace *ds = allocate_dataspace(size);
+  printf("allocate and use\n");
+  /*Dataspace *ds = allocate_dataspace(size);
   if (!ds) return 0;
   Chunk &chunk = create_free_chunk(ds, size);
   use_chunk(chunk);
@@ -132,10 +177,35 @@ void *malloc_allocate_and_use(size_t size)
   return 0;
 }
 
+void find_best_free_chunk(size_t size, Chunk *&prev_best, Chunk *&best)
+{
+  Chunk *prev = NULL;
+  Chunk *free = G.free;
+  //Chunk *prev_best = NULL;
+  //Chunk *best = NULL;
+  size_t best_diff = -1;
+  while (free) {
+    if (free->size > size) {
+      size_t diff = free->size - size - 1;
+      if (diff <= best_diff) {
+	best = free;
+	best_diff = diff;
+	prev_best = prev;
+	if (best_diff == 0) break;
+      }
+    }
+    prev = free;
+    free = free->free_next();
+  }
+}
+
 void *malloc_find_and_use(size_t size)
 {
+  printf("find and use\n");
+
+  Chunk *prev, *best;
+  find_best_free_chunk(size, prev, best);
   /*
-  Chunk &chunk = find_best_free_chunk(size);
   if (chunk.size > size)
     split_chunk(chunk, size);
   use_chunk(chunk);
@@ -144,9 +214,27 @@ void *malloc_find_and_use(size_t size)
   return 0;
 }
 
-Dataspace *create_dataspace(size_t size)
+void *malloc(size_t size) throw ()
 {
-  return 0;
+  printf(">>>>>>\n");
+
+  // something like alignment, safes a bit in Chunk.addr for used/free distinction
+  // it is also more common two allocate a structure of n*2 bytes
+  if (size % 2 == 1) ++size;
+
+  void *addr;
+  if (G.biggest_free_chunk_size > size)
+    addr = malloc_find_and_use(size);
+  else if (!G.initialized)
+    addr = malloc_init(size);
+  else
+    addr = malloc_allocate_and_use(size);
+
+  printf("malloc %i at %p", size, addr);
+  print_some();
+  printf("<<<<<<\n");
+
+  return addr;
 }
 
 /*
