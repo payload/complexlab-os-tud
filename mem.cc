@@ -46,11 +46,11 @@ struct Chunk {
     return addr & 1;
   }
   Chunk &set_used() {
-    size = size | 1;
+    if (!is_used()) size = size + 1;
     return *this;
   }
   Chunk &set_garbage() {
-    addr = addr | 1;
+    if (!is_garbage()) addr = addr + 1;
     return *this;
   }
   Chunk &link() {
@@ -67,7 +67,7 @@ struct Chunk {
     link().size = size;
   }
   void print() {
-    printf("addr %x\nsize %x\n", addr, size);
+    printf("C addr %x\nC size %x\n\n", addr, size);
   }
 };
 
@@ -77,7 +77,8 @@ struct G {
   bool initialized;
   size_t allocate_size_step;
   size_t min_allocate_size;
-  size_t biggest_free_chunk_size;
+  size_t biggest_free;
+  unsigned biggest_free_n;
   Chunk *app_space;
   Chunk *chunk_space;
   unsigned chunks;
@@ -86,6 +87,7 @@ struct G {
   false,
   L4_PAGESIZE,
   L4_PAGESIZE,
+  0,
   0,
   NULL,
   NULL,
@@ -111,6 +113,34 @@ Chunk &new_linked_chunk(size_t addr, size_t size, size_t next = NULL)
   return chunk;
 }
 
+Chunk &link_chunk(Chunk &chunk, size_t next = NULL)
+{
+  Chunk &link = new_chunk(next, chunk.size - 1);
+  chunk.size = (size_t)&link;
+  return chunk;
+}
+
+Chunk &link_chunk(Chunk &chunk, Chunk *next = NULL)
+{
+  return link_chunk(chunk, (size_t)next);
+}
+
+void add_big_free(size_t size)
+{
+  if (size == G.biggest_free) {
+    ++G.biggest_free_n;
+  } else if (size > G.biggest_free) {
+    G.biggest_free = size;
+    G.biggest_free_n = 1;
+  }
+}
+
+void rem_big_free(size_t size)
+{
+  if (size == G.biggest_free)
+    if (--G.biggest_free_n == 0)
+      G.biggest_free = 0;
+}
 
 //////////////
 
@@ -166,7 +196,8 @@ void *malloc_init(size_t size)
   Chunk &used = new_chunk(app_space.addr, size).set_used();
   Chunk &free = new_linked_chunk(app_space.addr + size, app_space._size() - size);
   
-  G.biggest_free_chunk_size = free._size();
+  add_big_free(free._size());
+
   G.free = &free;
   G.app_space = &app_space;
   G.initialized = true;
@@ -188,15 +219,23 @@ void count_linked_chunks(Chunk *chunk, unsigned &n, unsigned &size)
 void print_some()
 {
   unsigned n, size;
+  for (n = 0, size = 0; n < G.chunks; ++n) {
+    Chunk &chunk = G.chunk_space[n];
+    if (chunk.is_used())
+      size += chunk.size;
+  }
+  printf("chunks      %i %i\n", G.chunks, size);
+  printf("big free    %i %i\n", G.biggest_free_n, G.biggest_free);
   count_linked_chunks(G.free, n, size);
   printf("free        %i %i\n", n, size);
   count_linked_chunks(G.app_space, n, size);
   printf("app_space   %i %i\n", n, size);
   count_linked_chunks(G.chunk_space, n, size);
   printf("chunk_space %i %i\n", n, size);
+  printf("\n");
 }
 
-void *malloc_allocate_and_use(size_t size)
+void *malloc_allocate_and_use(size_t )
 {
   printf("allocate and use\n");
   /*Space *ds = allocate_dataspace(size);
@@ -234,12 +273,19 @@ void *malloc_find_and_use(size_t size)
 {
   printf("find and use\n");
 
-  Chunk *prev, *best;
+  Chunk *prev, *best = NULL;
   find_best_free_chunk(size, prev, best);
   if (best->_size() > size) {
-    Chunk &used = new_chunk(best->addr, size);
+
+    rem_big_free(best->_size());
+
+    Chunk &used = new_chunk(best->addr, size).set_used();
     best->_set(best->addr + size, best->_size() - size);
+
+    add_big_free(best->_size());
+
     return (void*)used.addr;
+  } else { // best->_size() == size
   }
   return 0;
 }
@@ -253,7 +299,7 @@ void *malloc(size_t size) throw ()
   if (size % 2 == 1) ++size;
 
   void *addr;
-  if (G.biggest_free_chunk_size > size)
+  if (G.biggest_free > size)
     addr = malloc_find_and_use(size);
   else if (!G.initialized)
     addr = malloc_init(size);
@@ -269,5 +315,16 @@ void *malloc(size_t size) throw ()
 
 void free(void *p) throw()
 {
-  enter_kdebug("free");
+  printf("free %p\n", p);
+  for (unsigned i = 0; i < G.chunks; ++i) {
+    Chunk &chunk = G.chunk_space[i];
+    if (chunk.is_used()) {
+      if ((void*)chunk.addr == p) {
+	G.free = &link_chunk(chunk, G.free);
+	add_big_free(chunk._size());
+	break;
+      }
+    }
+  }
+  print_some();
 }
