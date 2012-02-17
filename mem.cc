@@ -164,6 +164,16 @@ int allocate_dataspace(size_t &addr, size_t &size, size_t needed_size)
   return 0;
 }
 
+void release_space(Space *space)
+{
+  int err;
+  L4::Cap<L4Re::Dataspace> ds_cap;
+  err = L4Re::Env::env()->rm()->detach(space, &ds_cap);
+  if (err) return;
+  err = L4Re::Env::env()->mem_alloc()->free(ds_cap);
+  if (err) return;
+}
+
 Chunk *malloc_init(size_t size)
 {
   printf("init\n");
@@ -298,6 +308,26 @@ void merge_right(Chunk *free, Chunk *next) {
   free->fnext = next;
 }
 
+void collect_space(Chunk *free)
+{
+  Space *want = (Space*)(*free - sizeof(Space));
+  Space *space = G.space;
+  while (space) {
+    if (space == want
+	&& space->size == free->size + sizeof(Space)) {
+      if (space->next) space->next->prev = space->prev;
+      if (space->prev) space->prev->next = space->next;
+      if (space->prev == NULL && space->next) G.space = space->next;
+      if (space->prev == NULL && space->next == NULL) {
+	printf("\nempty!!!\n");
+      } else
+	release_space(space);
+      break;
+    }
+    space = space->next;
+  }
+}
+
 void free(void *p) throw()
 {
   if (p == NULL) {
@@ -318,6 +348,9 @@ void free(void *p) throw()
     merge_right(prev, free);
   } else G.free = free;
   merge_right(free, next);
+
+  if ((free->size + sizeof(Space)) % G.space_size_step == 0)
+    collect_space(free);
 
   print_some();
 }
