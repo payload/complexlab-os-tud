@@ -319,9 +319,11 @@ void collect_space(Chunk *free)
       if (space->prev) space->prev->next = space->next;
       if (space->prev == NULL && space->next) G.space = space->next;
       if (space->prev == NULL && space->next == NULL) {
-	printf("\nempty!!!\n");
-      } else
-	release_space(space);
+	G.space = NULL;
+	G.free = G.sfree = NULL;
+	G.initialized = false;
+      }
+      release_space(space);
       break;
     }
     space = space->next;
