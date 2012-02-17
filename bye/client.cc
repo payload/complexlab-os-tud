@@ -49,7 +49,10 @@ int main()
 
   printf("\n# test 3 #\n");
   a = new int[2000];
-
+  
+  printf("\n# test 4 #\n");
+  delete a;
+  
   //////////////////
 
   L4::Cap<void> server = L4Re::Env::env()->get_cap<void>("bye_server");
