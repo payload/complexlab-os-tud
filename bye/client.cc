@@ -52,6 +52,12 @@ int main()
   
   printf("\n# test 4 #\n");
   delete a;
+
+  printf("\n# test 5 #\n");
+  a = new int[2000];
+  b = new int[10000];
+  delete a;
+  delete b;
   
   //////////////////
 
