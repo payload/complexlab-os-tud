@@ -74,10 +74,14 @@ struct Chunk {
   void print(const char *tag = "") {
     printf("> Chunk %p%s\n", this, tag);
     printf("size  %u\n", size);
+  }
+
+  void print_free() {
+    print(" FREE");
     printf("fnext %p\n", fnext);
     if (has_fprev()) printf("fprev %p\n", fprev);
-    if (has_snext()) printf("snext %p\n", snext);
-    if (has_sprev()) printf("sprev %p\n", sprev);
+    //if (has_snext()) printf("snext %p\n", snext);
+    //if (has_sprev()) printf("sprev %p\n", sprev);
   }
 };
 
@@ -128,7 +132,7 @@ void print_some() {
     Chunk *chunk = space->chunk();
     while ((size_t)chunk < (size_t)space + space->size) {
       if (free == chunk) {
-	chunk->print(" FREE");
+	chunk->print_free();
 	free = free->fnext;
       }
       else chunk->print();	
@@ -208,14 +212,21 @@ Chunk *malloc_find(size_t size)
       free->fnext = temp.fnext;
       free->fprev = temp.fprev;
       if (free->fprev) free->fprev->fnext = free;
+      else G.free = free;
       break;
     }
     if (free->size == size) {
-      //break;
+      if (free->fprev) free->fprev->fnext = free->fnext;
+      if (free->fnext) {
+	free->fnext->fprev = free->fprev;
+	if (free->fprev == NULL)
+	  G.free = free->fnext;
+      }
+      used = free;
+      break;
     }
     free = free->fnext;
   }
-  if (free->fprev == NULL) G.free = free;
 
   used->null_data(); // DEBUG not necessary according to man malloc
   return used;
