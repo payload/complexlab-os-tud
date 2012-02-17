@@ -71,8 +71,8 @@ struct Chunk {
     memcpy(dest, this, min(size, sizeof(Chunk)));
   }
 
-  void print() {
-    printf("> Chunk %p\n", this);
+  void print(const char *tag = "") {
+    printf("> Chunk %p%s\n", this, tag);
     printf("size  %u\n", size);
     printf("fnext %p\n", fnext);
     if (has_fprev()) printf("fprev %p\n", fprev);
@@ -121,12 +121,17 @@ size_t align_size(size_t size) {
 }
 
 void print_some() {
+  Chunk *free = G.free;
   Space *space = G.space;
   while (space) {
     space->print();
     Chunk *chunk = space->chunk();
     while ((size_t)chunk < (size_t)space + space->size) {
-      chunk->print();
+      if (free == chunk) {
+	chunk->print(" FREE");
+	free = free->fnext;
+      }
+      else chunk->print();	
       chunk = chunk->next();
     }
     space = space->next;
@@ -202,12 +207,17 @@ Chunk *malloc_find(size_t size)
       free->size = temp.size - size;
       free->fnext = temp.fnext;
       free->fprev = temp.fprev;
+      if (free->fprev) free->fprev->fnext = free;
       break;
+    }
+    if (free->size == size) {
+      //break;
     }
     free = free->fnext;
   }
   if (free->fprev == NULL) G.free = free;
 
+  used->null_data(); // DEBUG not necessary according to man malloc
   return used;
 }
 
