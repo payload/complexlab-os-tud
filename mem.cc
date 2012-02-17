@@ -18,6 +18,10 @@
 #include <l4/re/env>
 #include <l4/sys/consts.h>
 
+size_t min(size_t a, size_t b) {
+  return a<b?a:b;
+}
+
 /*
   [size][data]				 used chunk
   [size][fnext]				 free chunk 1
@@ -38,8 +42,13 @@ struct Chunk {
   bool has_fprev() { return size >= 3*sizeof(size); }
   bool has_snext() { return size >= 4*sizeof(size); }
   bool has_sprev() { return size >= 5*sizeof(size); }
+  
   void null() {
     size = 0;
+    null_data();
+  }
+
+  void null_data() {
     fnext = 0;
     if (has_fprev()) fprev = 0;
     if (has_snext()) snext = 0;
@@ -58,9 +67,13 @@ struct Chunk {
     return *(Chunk*)p - sizeof(size_t);
   }
 
+  void copy(Chunk *dest) {
+    memcpy(dest, this, min(size, sizeof(Chunk)));
+  }
+
   void print() {
     printf("> Chunk %p\n", this);
-    printf("size  %x\n", size);
+    printf("size  %u\n", size);
     printf("fnext %p\n", fnext);
     if (has_fprev()) printf("fprev %p\n", fprev);
     if (has_snext()) printf("snext %p\n", snext);
@@ -78,7 +91,7 @@ struct Space {
 
   void print() {
     printf("> Space\n\
-size  %i\n\
+size  %u\n\
 next  %p\n\
 prev  %p\n", size, next, prev);
   }
@@ -121,7 +134,7 @@ void print_some() {
 }
 
 bool can_find(size_t ) {
-  return false;
+  return G.free != NULL;
 }
 
 int allocate_dataspace(size_t &addr, size_t &size, size_t needed_size)
@@ -163,7 +176,7 @@ Chunk *malloc_init(size_t size)
   Chunk *used = G.space->chunk();
   used->size = size;
   G.sfree = G.free = used->next();
-  G.free->size = space_size - (space_addr + (size_t)G.free);
+  G.free->size = space_size - ((size_t)G.free - space_addr);
 
   G.initialized = true;
   return used;
@@ -175,15 +188,32 @@ Chunk *malloc_space(size_t )
   return 0;
 }
 
-Chunk *malloc_find(size_t )
+Chunk *malloc_find(size_t size)
 {
   printf("find and use\n");
-  return 0;
+
+  Chunk *free = G.free, *used = NULL, temp;
+  while (free) {
+    if (free->size > size) {
+      free->copy(&temp);
+      used = free;
+      used->size = size;
+      free = used->next();
+      free->size = temp.size - size;
+      free->fnext = temp.fnext;
+      free->fprev = temp.fprev;
+      break;
+    }
+    free = free->fnext;
+  }
+  if (free->fprev == NULL) G.free = free;
+
+  return used;
 }
 
 void *malloc(size_t size) throw ()
 {
-  printf(">>>>>>\n");
+  printf("\n>>>>>>\n");
   if (size == 0) return NULL;
   size = align_size(size);
   Chunk *used;
@@ -205,48 +235,48 @@ void *malloc(size_t size) throw ()
   return used->addr();
 }
 
+
+
+
+void merge_right(Chunk *free, Chunk *next) {
+  Chunk *temp;
+  while (*free + free->size == next) {
+    free->size += next->size;
+    temp = next->fnext;
+    next->null();
+    next = temp;
+  }
+  if (next) next->fprev = free;
+  free->fnext = next;
+}
+
 void free(void *p) throw()
 {
   if (p == NULL) {
-    printf("free NULL\n");
+    printf("\nfree NULL\n");
     return;
-  }
+  }  
   
   Chunk
     *free = Chunk::from_addr(p),
     *next = G.free,
-    *prev = NULL,
-    temp;
+    *prev = NULL;
 
-  printf("free %p %p\n", free, p);
-
+  printf("\nfree %p\n", free);
+  free->null_data();
   while (next && !(next > free)) {
     prev = next;
     next = next->fnext;
-  }
-  
-  // merge right
-  while (*free + free->size == next) {
-    printf("merge right\n");
-    free->size += next->size;
-    temp = *next;
-    next->null();
-    next = temp.fnext;
-  }
-  if (next) next->fprev = free;
-  free->fnext = next;
+  }  
 
-  // merge left
-  while (prev && *prev + prev->size == free) {
-    printf("merge left\n");
-    prev->size += free->size;
-    prev->fnext = next;
-    next->fprev = prev;
-    free = prev;
-    prev = prev->fprev;
-    prev->fnext = free;
+  if (prev) {
+    free->fnext = prev->fnext;
+    merge_right(prev, free);
   }
-  free->fprev = prev;
+  else {
+    G.free = free;
+    merge_right(free, next);
+  }
 
   print_some();
 }
