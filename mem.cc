@@ -316,11 +316,8 @@ void free(void *p) throw()
   if (prev) {
     free->fnext = prev->fnext;
     merge_right(prev, free);
-  }
-  else {
-    G.free = free;
-    merge_right(free, next);
-  }
+  } else G.free = free;
+  merge_right(free, next);
 
   print_some();
 }
