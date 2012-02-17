@@ -22,26 +22,13 @@ size_t min(size_t a, size_t b) {
   return a<b?a:b;
 }
 
-/*
-  [size][data]				 used chunk
-  [size][fnext]				 free chunk 1
-  [size][fnext,fprev]			 free chunk 2
-  [size][fnext,fprev,snext]		 free chunk 3
-  [size][fnext,fprev,snext,sprev,*]	 free chunk 4
-  [size,prev,next][data]		 dataspace  
- */
-
 struct Chunk {
   size_t size;
   Chunk *fnext;
   Chunk *fprev;
-  Chunk *snext;
-  Chunk *sprev;
+
   void *addr() { return &fnext; }
   Chunk *next() { return *this + size; }
-  bool has_fprev() { return size >= 3*sizeof(size); }
-  bool has_snext() { return size >= 4*sizeof(size); }
-  bool has_sprev() { return size >= 5*sizeof(size); }
   
   void null() {
     size = 0;
@@ -50,9 +37,7 @@ struct Chunk {
 
   void null_data() {
     fnext = 0;
-    if (has_fprev()) fprev = 0;
-    if (has_snext()) snext = 0;
-    if (has_sprev()) sprev = 0;
+    fprev = 0;
   }
 
   Chunk *operator + (size_t size) {
@@ -69,19 +54,19 @@ struct Chunk {
 
   void copy(Chunk *dest) {
     memcpy(dest, this, min(size, sizeof(Chunk)));
+    // when I implement the three special chunks of size 8, 16, and 20 ;)
+    // [size,fnext] [size,fnext,fprev,snext] [size,fnext,fprev,snext,sprev]
   }
 
   void print(const char *tag = "") {
-    printf("> Chunk %p%s\n", this, tag);
-    printf("size  %u\n", size);
+    printf("C this  %p%s\n", this, tag);
+    printf("C size  %u\n", size);
   }
 
   void print_free() {
     print(" FREE");
-    printf("fnext %p\n", fnext);
-    if (has_fprev()) printf("fprev %p\n", fprev);
-    //if (has_snext()) printf("snext %p\n", snext);
-    //if (has_sprev()) printf("sprev %p\n", sprev);
+    printf("C fnext %p\n", fnext);
+    printf("C fprev %p\n", fprev);
   }
 };
 
@@ -94,10 +79,10 @@ struct Space {
   Chunk *chunk() { return (Chunk*)((size_t)this + sizeof(Space)); }
 
   void print() {
-    printf("> Space\n\
-size  %u\n\
-next  %p\n\
-prev  %p\n", size, next, prev);
+    printf("S this  %p\n", this);
+    printf("S size  %u\n", size);
+    printf("S next  %p\n", next);
+    printf("S prev  %p\n", prev);
   }
 };
 
@@ -106,7 +91,7 @@ struct G {
   size_t space_size_step;
   size_t chunk_size_step;
   Chunk *free;  // free list sorted by address
-  Chunk *sfree; // free list sorted by size
+  Chunk *sfree; // free list sorted by size - not used now
   Space *space;
 } G = {
   false,
@@ -125,7 +110,7 @@ size_t align_size(size_t size) {
 }
 
 void print_some() {
-  printf("G.free %p\n", G.free);
+  printf("G.free  %p\n", G.free);
   Chunk *free = G.free;
   Space *space = G.space;
   while (space) {
