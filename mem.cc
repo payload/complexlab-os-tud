@@ -121,10 +121,11 @@ size_t align_size(size_t size) {
   if (size < G.chunk_size_step)
     return G.chunk_size_step;
   else
-    return size % G.chunk_size_step;
+    return size + size % G.chunk_size_step;
 }
 
 void print_some() {
+  printf("G.free %p\n", G.free);
   Chunk *free = G.free;
   Space *space = G.space;
   while (space) {
@@ -142,12 +143,22 @@ void print_some() {
   }
 }
 
+void find_place_in_free(Chunk *free, Chunk *&prev, Chunk *&next)
+{
+  while (next && !(next > free)) {
+    prev = next;
+    next = next->fnext;
+  }  
+}
+
 bool can_find(size_t ) {
   return G.free != NULL;
 }
 
 int allocate_dataspace(size_t &addr, size_t &size, size_t needed_size)
 {
+  needed_size += sizeof(Space) + G.chunk_size_step;
+
   L4::Cap<L4Re::Dataspace> ds_cap =
     L4Re::Util::cap_alloc.alloc<L4Re::Dataspace>();
   if (!ds_cap.is_valid()) return -1;
@@ -155,7 +166,7 @@ int allocate_dataspace(size_t &addr, size_t &size, size_t needed_size)
   if (needed_size <= G.space_size_step)
     size = G.space_size_step;
   else
-    size = G.space_size_step * (needed_size / G.space_size_step);
+    size = G.space_size_step * (needed_size / G.space_size_step + 1);
 
   long err =
     L4Re::Env::env()->mem_alloc()->alloc(size, ds_cap);
@@ -191,10 +202,41 @@ Chunk *malloc_init(size_t size)
   return used;
 }
 
-Chunk *malloc_space(size_t )
+Chunk *malloc_space(size_t size)
 {
   printf("allocate and use\n");
-  return 0;
+  size_t saddr, ssize;
+  int err;
+  err = allocate_dataspace(saddr, ssize, size);
+  if (err) return NULL;
+
+  Space *space = (Space*)saddr, *prev = NULL, *next = G.space;
+  space->size = ssize;
+  while (next && !(next > space)) {
+    prev = next;
+    next = next->next;
+  }  
+  space->next = next;
+  space->prev = prev;
+  if (prev) prev->next = space;
+  else G.space = space;
+  if (next) next->prev = space;
+  
+  Chunk *used = space->chunk();
+  used->size = size;
+
+  size_t free_size = ssize - size - sizeof(Space);
+  if (free_size >= G.chunk_size_step) {
+    Chunk *free = used->next();
+    free->size = free_size;
+    free->fnext = G.free;
+    find_place_in_free(free, free->fprev, free->fnext);
+    if (free->fprev == NULL) G.free = free;
+    else free->fprev->fnext = free;
+    if (free->fnext) free->fnext->fprev = free;
+  }
+
+  return used;
 }
 
 Chunk *malloc_find(size_t size)
@@ -228,7 +270,7 @@ Chunk *malloc_find(size_t size)
     free = free->fnext;
   }
 
-  used->null_data(); // DEBUG not necessary according to man malloc
+  if (used) used->null_data(); // DEBUG not necessary according to man malloc
   return used;
 }
 
@@ -237,12 +279,12 @@ void *malloc(size_t size) throw ()
   printf("\n>>>>>>\n");
   if (size == 0) return NULL;
   size = align_size(size);
-  Chunk *used;
+  Chunk *used = NULL;
   if (can_find(size))
     used = malloc_find(size);
   else if (!G.initialized)
     used = malloc_init(size);
-  else
+  if (used == NULL)
     used = malloc_space(size);
 
   if (used == NULL)
@@ -285,11 +327,7 @@ void free(void *p) throw()
 
   printf("\nfree %p\n", free);
   free->null_data();
-  while (next && !(next > free)) {
-    prev = next;
-    next = next->fnext;
-  }  
-
+  find_place_in_free(free, prev, next);
   if (prev) {
     free->fnext = prev->fnext;
     merge_right(prev, free);
