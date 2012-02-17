@@ -296,16 +296,19 @@ void *malloc(size_t size) throw ()
 
 
 
-void merge_right(Chunk *free, Chunk *next) {
+bool merge_right(Chunk *free, Chunk *next) {
+  bool merged = false;
   Chunk *temp;
   while (*free + free->size == next) {
     free->size += next->size;
     temp = next->fnext;
     next->null();
     next = temp;
+    merged = true;
   }
   if (next) next->fprev = free;
   free->fnext = next;
+  return merged;
 }
 
 void collect_space(Chunk *free)
@@ -347,7 +350,7 @@ void free(void *p) throw()
   find_place_in_free(free, prev, next);
   if (prev) {
     free->fnext = prev->fnext;
-    merge_right(prev, free);
+    if (merge_right(prev, free)) free = prev;
   } else G.free = free;
   merge_right(free, next);
 
