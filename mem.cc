@@ -34,21 +34,41 @@ struct Chunk {
   Chunk *snext;
   Chunk *sprev;
   void *addr() { return &fnext; }
-  Chunk *next() { return (Chunk*)((size_t)this + size); }
-  static Chunk &from_addr(void *p) { return *(Chunk*)((size_t*)p - 1); }
-  bool is2() { return size > sizeof(size) + 2*sizeof(Chunk*); }
-  bool is3() { return size > sizeof(size) + 3*sizeof(Chunk*); }
-  bool is4() { return size > sizeof(size) + 4*sizeof(Chunk*); }
+  Chunk *next() { return *this + size; }
+  bool has_fprev() { return size >= 3*sizeof(size); }
+  bool has_snext() { return size >= 4*sizeof(size); }
+  bool has_sprev() { return size >= 5*sizeof(size); }
+  void null() {
+    size = 0;
+    fnext = 0;
+    if (has_fprev()) fprev = 0;
+    if (has_snext()) snext = 0;
+    if (has_sprev()) sprev = 0;
+  }
+
+  Chunk *operator + (size_t size) {
+    return (Chunk*)((size_t)this + size);
+  }
+
+  Chunk *operator - (size_t size) {
+    return (Chunk*)((size_t)this - size);
+  }
+
+  static Chunk *from_addr(void*p) {
+    return *(Chunk*)p - sizeof(size_t);
+  }
 
   void print() {
-    printf("> Chunk\n\
-size  %x\n\
-fnext %p\n", size, fnext);
-    if (is2()) printf("fprev %p\n", fprev);
-    if (is3()) printf("snext %p\n", snext);
-    if (is4()) printf("sprev %p\n", sprev);
+    printf("> Chunk %p\n", this);
+    printf("size  %x\n", size);
+    printf("fnext %p\n", fnext);
+    if (has_fprev()) printf("fprev %p\n", fprev);
+    if (has_snext()) printf("snext %p\n", snext);
+    if (has_sprev()) printf("sprev %p\n", sprev);
   }
 };
+
+////////////////////////////////////////////////////////////
 
 struct Space {
   size_t size;
@@ -74,13 +94,18 @@ struct G {
 } G = {
   false,
   L4_PAGESIZE,
-  L4_PAGESIZE,
+  3*sizeof(size_t),
   NULL,
   NULL,
   NULL
 };
 
-size_t align_size(size_t size) { return size + size % G.chunk_size_step; }
+size_t align_size(size_t size) {
+  if (size < G.chunk_size_step)
+    return G.chunk_size_step;
+  else
+    return size % G.chunk_size_step;
+}
 
 void print_some() {
   Space *space = G.space;
@@ -137,8 +162,8 @@ Chunk *malloc_init(size_t size)
 
   Chunk *used = G.space->chunk();
   used->size = size;
-  Chunk *free = used->next();
-  free->size = space_size - (space_addr + (size_t)&free);
+  G.sfree = G.free = used->next();
+  G.free->size = space_size - (space_addr + (size_t)G.free);
 
   G.initialized = true;
   return used;
@@ -182,8 +207,47 @@ void *malloc(size_t size) throw ()
 
 void free(void *p) throw()
 {
-  printf("free %p\n", p);
-  //Chunk &chunk = Chunk::from_addr(p);
+  if (p == NULL) {
+    printf("free NULL\n");
+    return;
+  }
+  
+  Chunk
+    *free = Chunk::from_addr(p),
+    *next = G.free,
+    *prev = NULL,
+    temp;
+
+  printf("free %p %p\n", free, p);
+
+  while (next && !(next > free)) {
+    prev = next;
+    next = next->fnext;
+  }
+  
+  // merge right
+  while (*free + free->size == next) {
+    printf("merge right\n");
+    free->size += next->size;
+    temp = *next;
+    next->null();
+    next = temp.fnext;
+  }
+  if (next) next->fprev = free;
+  free->fnext = next;
+
+  // merge left
+  while (prev && *prev + prev->size == free) {
+    printf("merge left\n");
+    prev->size += free->size;
+    prev->fnext = next;
+    next->fprev = prev;
+    free = prev;
+    prev = prev->fprev;
+    prev->fnext = free;
+  }
+  free->fprev = prev;
+
   print_some();
 }
 
