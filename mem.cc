@@ -318,6 +318,9 @@ void collect_space(Chunk *free)
   while (space) {
     if (space == want
 	&& space->size == free->size + sizeof(Space)) {
+      if (free->fprev) free->fprev->fnext = free->fnext;
+      else G.free = free->fnext;
+      if (free->fnext) free->fnext->fprev = free->fprev;
       if (space->next) space->next->prev = space->prev;
       if (space->prev) space->prev->next = space->next;
       if (space->prev == NULL && space->next) G.space = space->next;
