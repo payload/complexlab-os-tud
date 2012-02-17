@@ -15,9 +15,10 @@ public:
 int Bye_server::dispatch(l4_umword_t, L4::Ipc::Iostream &ios)
 {
   unsigned long size;
-  char *buf;
+  char *buf = NULL;
   ios >> size >> L4::Ipc::Buf_in<char>(buf, size);
   printf("%s %s\n", buf, buf);
+  return 0;
 }
 
 int main()
