@@ -83,17 +83,11 @@ void print_goos_info(L4Re::Video::View::Info &info)
 int main()
 {
   printf("Let's do it!\n");
-  L4::Cap<L4Re::Video::Goos> fb_cap = L4Re::Env::env()->get_cap<L4Re::Video::Goos>("fb");
-  if (!fb_cap.is_valid()) return print_error("fb_cap not valid\n");
-  printf("0\n");
-  L4Re::Util::Video::Goos_fb *goos = new L4Re::Util::Video::Goos_fb(fb_cap);
-  printf("1\n");
+  L4Re::Util::Video::Goos_fb goos("fb");
   L4Re::Video::View::Info info;
-  printf("2\n");
-  goos->view_info(&info);
-  printf("3\n");
+  goos.view_info(&info);
   print_goos_info(info);
-  printf("4\n");
+  //goos->attach_buffer();
 
   SessionServer session;
   if (!server.registry()->register_obj(&session, "bye_server").is_valid())
