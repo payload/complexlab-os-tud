@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern int MALLOC_DEBUG;
+
 int main()
 {
+  MALLOC_DEBUG = 1;
+
   int *a, *b;
 
   printf("\n# test 0 #\n");

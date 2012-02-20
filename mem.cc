@@ -18,6 +18,8 @@
 #include <l4/re/env>
 #include <l4/sys/consts.h>
 
+int MALLOC_DEBUG = 0;
+
 size_t min(size_t a, size_t b) {
   return a<b?a:b;
 }
@@ -59,11 +61,13 @@ struct Chunk {
   }
 
   void print(const char *tag = "") {
+    if (!MALLOC_DEBUG) return;
     printf("C this  %p%s\n", this, tag);
     printf("C size  %u\n", size);
   }
 
   void print_free() {
+    if (!MALLOC_DEBUG) return;
     print(" FREE");
     printf("C fnext %p\n", fnext);
     printf("C fprev %p\n", fprev);
@@ -79,6 +83,7 @@ struct Space {
   Chunk *chunk() { return (Chunk*)((size_t)this + sizeof(Space)); }
 
   void print() {
+    if (!MALLOC_DEBUG) return;
     printf("S this  %p\n", this);
     printf("S size  %u\n", size);
     printf("S next  %p\n", next);
@@ -110,7 +115,7 @@ size_t align_size(size_t size) {
 }
 
 void print_some() {
-  printf("G.free  %p\n", G.free);
+  if (MALLOC_DEBUG) printf("G.free  %p\n", G.free);
   Chunk *free = G.free;
   Space *space = G.space;
   while (space) {
@@ -176,14 +181,14 @@ void release_space(Space *space)
 
 Chunk *malloc_init(size_t size)
 {
-  printf("init\n");
+  if (MALLOC_DEBUG) printf("init\n");
   size_t space_addr, space_size;
   int err;
 
   err = allocate_dataspace(space_addr, space_size, size);
   if (err) return NULL;
 
-  printf("space_addr %p\n", (void*)space_addr);
+  if (MALLOC_DEBUG) printf("space_addr %p\n", (void*)space_addr);
 
   G.space = (Space*)space_addr;
   G.space->size = space_size;
@@ -199,7 +204,7 @@ Chunk *malloc_init(size_t size)
 
 Chunk *malloc_space(size_t size)
 {
-  printf("allocate and use\n");
+  if (MALLOC_DEBUG) printf("allocate and use\n");
   size_t saddr, ssize;
   int err;
   err = allocate_dataspace(saddr, ssize, size);
@@ -236,7 +241,7 @@ Chunk *malloc_space(size_t size)
 
 Chunk *malloc_find(size_t size)
 {
-  printf("find and use\n");
+  if (MALLOC_DEBUG) printf("find and use\n");
 
   Chunk *free = G.free, *used = NULL, temp;
   while (free) {
@@ -271,7 +276,7 @@ Chunk *malloc_find(size_t size)
 
 void *malloc(size_t size) throw ()
 {
-  printf("\n>>>>>>\n");
+  if (MALLOC_DEBUG) printf("\n>>>>>>\n");
   if (size == 0) return NULL;
   size = align_size(size);
   Chunk *used = NULL;
@@ -283,12 +288,12 @@ void *malloc(size_t size) throw ()
     used = malloc_space(size);
 
   if (used == NULL)
-    printf("malloc error\n");
+    if (MALLOC_DEBUG) printf("malloc error\n");
   else {
-    printf("malloc %i at %p\n", size, used);
+    if (MALLOC_DEBUG) printf("malloc %i at %p\n", size, used);
     print_some();
   }
-  printf("<<<<<<\n");
+  if (MALLOC_DEBUG) printf("<<<<<<\n");
 
   return used->addr();
 }
@@ -339,7 +344,7 @@ void collect_space(Chunk *free)
 void free(void *p) throw()
 {
   if (p == NULL) {
-    printf("\nfree NULL\n");
+    if (MALLOC_DEBUG) printf("\nfree NULL\n");
     return;
   }  
   
@@ -348,7 +353,7 @@ void free(void *p) throw()
     *next = G.free,
     *prev = NULL;
 
-  printf("\nfree %p\n", free);
+  if (MALLOC_DEBUG) printf("\nfree %p\n", free);
   free->null_data();
   find_place_in_free(free, prev, next);
   if (prev) {
