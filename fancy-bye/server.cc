@@ -5,6 +5,9 @@
 #include <l4/re/util/meta>
 #include <l4/cxx/ipc_server>
 
+#include <l4/re/video/goos>
+#include <l4/re/util/video/goos_fb>
+
 L4Re::Util::Registry_server<> server;
 
 class ByeServer : public L4::Server_object
@@ -58,13 +61,43 @@ public:
   }
 };
 
+int print_error(const char *s)
+{
+  printf("%s\n", s);
+  return -1;
+}
+
+void print_goos_info(L4Re::Video::View::Info &info)
+{
+  printf("==========\n");
+  printf("Goos info %p\n", &info);
+  printf(" width    %lu\n", info.width);
+  printf(" height   %lu\n", info.height);
+  printf(" flags    %u\n", info.flags);
+  //printf(" views    %u\n", info.num_static_views);
+  //printf(" buffers  %u\n", info.num_static_buffers);
+  printf(" bpp      %u\n", info.pixel_info.bits_per_pixel());
+  printf("==========\n");
+}
+
 int main()
 {
+  printf("Let's do it!\n");
+  L4::Cap<L4Re::Video::Goos> fb_cap = L4Re::Env::env()->get_cap<L4Re::Video::Goos>("fb");
+  if (!fb_cap.is_valid()) return print_error("fb_cap not valid\n");
+  printf("0\n");
+  L4Re::Util::Video::Goos_fb *goos = new L4Re::Util::Video::Goos_fb(fb_cap);
+  printf("1\n");
+  L4Re::Video::View::Info info;
+  printf("2\n");
+  goos->view_info(&info);
+  printf("3\n");
+  print_goos_info(info);
+  printf("4\n");
+
   SessionServer session;
-  if (!server.registry()->register_obj(&session, "bye_server").is_valid()) {
-    printf("Could not register my service, readonly namespace?\n");
-    return 1;
-  }
+  if (!server.registry()->register_obj(&session, "bye_server").is_valid())
+    return print_error("Could not register my service, readonly namespace?\n");
   printf("Cheerio!\n");
   server.loop();
   return 0;
