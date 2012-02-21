@@ -83,6 +83,7 @@ struct FB : public L4Re::Video::View::Info {
     goos.view_info(this);
     linesize = l4util_next_power2(width * bpp());
     size = linesize * height;
+    addr = goos.attach_buffer();
   }
 
   L4Re::Video::View::Info *info() const {
@@ -137,7 +138,6 @@ int main()
 {
   printf("Let's do it!\n");
   FB fb;
-  fb.addr = fb.goos.attach_buffer();
   print_goos_info(fb);
   memset(fb.addr, 0xFF, fb.size);
 
