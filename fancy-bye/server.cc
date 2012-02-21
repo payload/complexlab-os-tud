@@ -10,6 +10,16 @@
 #include <l4/re/video/goos>
 #include <l4/re/util/video/goos_fb>
 
+typedef unsigned long ulong;
+typedef unsigned char byte;
+
+struct Color {
+  byte b;
+  byte g;
+  byte r;
+  Color(byte r, byte g, byte b) : b(b), g(g), r(r) {}
+};
+
 L4Re::Util::Registry_server<> server;
 
 class ByeServer : public L4::Server_object
@@ -63,43 +73,6 @@ public:
   }
 };
 
-int print_error(const char *s)
-{
-  printf("%s\n", s);
-  return -1;
-}
-
-void print_goos_info(L4Re::Video::View::Info &info)
-{
-  printf("==========\n");
-  printf("Goos info %p\n", &info);
-  printf(" width    %lu\n", info.width);
-  printf(" height   %lu\n", info.height);
-  printf(" flags    %u\n", info.flags);
-  //printf(" views    %u\n", info.num_static_views);
-  //printf(" buffers  %u\n", info.num_static_buffers);
-  printf(" bpp      %u\n", info.pixel_info.bits_per_pixel());
-  printf(" rsize    %u\n", info.pixel_info.r().size());
-  printf(" gsize    %u\n", info.pixel_info.g().size());
-  printf(" bsize    %u\n", info.pixel_info.b().size());
-  printf(" asize    %u\n", info.pixel_info.a().size());
-  printf(" rshift   %u\n", info.pixel_info.r().shift());
-  printf(" gshift   %u\n", info.pixel_info.g().shift());
-  printf(" bshift   %u\n", info.pixel_info.b().shift());
-  printf(" ashift   %u\n", info.pixel_info.a().shift());
-  printf("==========\n");
-}
-
-typedef unsigned long ulong;
-typedef unsigned char byte;
-
-struct Color {
-  byte b;
-  byte g;
-  byte r;
-  Color(byte r, byte g, byte b) : b(b), g(g), r(r) {}
-};
-
 struct FB : public L4Re::Video::View::Info {
   void *addr;
   L4Re::Util::Video::Goos_fb goos;
@@ -132,6 +105,33 @@ struct FB : public L4Re::Video::View::Info {
     goos.refresh(0, 0, width, height);
   }
 };
+
+int print_error(const char *s)
+{
+  printf("%s\n", s);
+  return -1;
+}
+
+void print_goos_info(L4Re::Video::View::Info &info)
+{
+  printf("==========\n");
+  printf("Goos info %p\n", &info);
+  printf(" width    %lu\n", info.width);
+  printf(" height   %lu\n", info.height);
+  printf(" flags    %u\n", info.flags);
+  //printf(" views    %u\n", info.num_static_views);
+  //printf(" buffers  %u\n", info.num_static_buffers);
+  printf(" bpp      %u\n", info.pixel_info.bits_per_pixel());
+  printf(" rsize    %u\n", info.pixel_info.r().size());
+  printf(" gsize    %u\n", info.pixel_info.g().size());
+  printf(" bsize    %u\n", info.pixel_info.b().size());
+  printf(" asize    %u\n", info.pixel_info.a().size());
+  printf(" rshift   %u\n", info.pixel_info.r().shift());
+  printf(" gshift   %u\n", info.pixel_info.g().shift());
+  printf(" bshift   %u\n", info.pixel_info.b().shift());
+  printf(" ashift   %u\n", info.pixel_info.a().shift());
+  printf("==========\n");
+}
 
 int main()
 {
