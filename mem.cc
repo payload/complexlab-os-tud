@@ -108,10 +108,12 @@ struct G {
 };
 
 size_t align_size(size_t size) {
-  if (size < G.chunk_size_step)
+  if (size + sizeof(size_t) < G.chunk_size_step)
     return G.chunk_size_step;
-  else
-    return size + size % G.chunk_size_step;
+  else {
+    size = sizeof(size_t) + size;
+    return (size / G.chunk_size_step + 1) * G.chunk_size_step;
+  }
 }
 
 void print_some() {
@@ -287,8 +289,9 @@ void *malloc(size_t size) throw ()
   if (used == NULL)
     used = malloc_space(size);
 
-  if (used == NULL)
+  if (used == NULL) {
     if (MALLOC_DEBUG) printf("malloc error\n");
+  }
   else {
     if (MALLOC_DEBUG) printf("malloc %i at %p\n", size, used);
     print_some();
