@@ -9,6 +9,8 @@
 
 #include <l4/re/video/goos>
 #include <l4/re/util/video/goos_fb>
+#include <l4/libgfxbitmap/bitmap.h>
+#include <l4/libgfxbitmap/font.h>
 
 typedef unsigned long ulong;
 typedef unsigned char byte;
@@ -73,73 +75,70 @@ public:
   }
 };
 
-struct FB : public L4Re::Video::View::Info {
-  void *addr;
-  L4Re::Util::Video::Goos_fb goos;
-  ulong linesize;
-  ulong size;
-
-  FB() : goos("fb") {
-    goos.view_info(this);
-    linesize = l4util_next_power2(width * bpp());
-    size = linesize * height;
-    addr = goos.attach_buffer();
-  }
-
-  L4Re::Video::View::Info *info() const {
-    return (L4Re::Video::View::Info*)this;
-  }
-
-  unsigned char bpp() const {
-    return pixel_info.bytes_per_pixel();
-  }
-
-  Color *pxl(ulong x, ulong y) {
-    return (Color*)((ulong)addr + x*bpp() + y*linesize);
-  }
-
-  void draw_pixel(ulong x, ulong y, Color c) {
-    *(Color*)pxl(x,y) = c;
-  }
-
-  void refresh() {
-    goos.refresh(0, 0, width, height);
-  }
-};
-
 int print_error(const char *s)
 {
   printf("%s\n", s);
   return -1;
 }
 
-void print_goos_info(L4Re::Video::View::Info &info)
-{
-  printf("==========\n");
-  printf("Goos info %p\n", &info);
-  printf(" width    %lu\n", info.width);
-  printf(" height   %lu\n", info.height);
-  printf(" flags    %u\n", info.flags);
-  //printf(" views    %u\n", info.num_static_views);
-  //printf(" buffers  %u\n", info.num_static_buffers);
-  printf(" bpp      %u\n", info.pixel_info.bits_per_pixel());
-  printf(" rsize    %u\n", info.pixel_info.r().size());
-  printf(" gsize    %u\n", info.pixel_info.g().size());
-  printf(" bsize    %u\n", info.pixel_info.b().size());
-  printf(" asize    %u\n", info.pixel_info.a().size());
-  printf(" rshift   %u\n", info.pixel_info.r().shift());
-  printf(" gshift   %u\n", info.pixel_info.g().shift());
-  printf(" bshift   %u\n", info.pixel_info.b().shift());
-  printf(" ashift   %u\n", info.pixel_info.a().shift());
-  printf("==========\n");
-}
+struct Gfx {
+  L4Re::Util::Video::Goos_fb _goos;  
+  L4Re::Video::View::Info _info;
+  void *_addr;
+  gfxbitmap_color_pix_t _fg;
+  gfxbitmap_color_pix_t _bg;
+
+  Gfx() : _goos("fb") {
+    _goos.view_info(&_info);
+    _addr = _goos.attach_buffer();
+    gfxbitmap_font_init();
+    fg(0);
+    bg(0xFFFFFF);
+    clear();
+  }
+
+  l4re_video_view_info_t *info() {
+    return (l4re_video_view_info_t*)&_info;
+  }
+
+  gfxbitmap_color_pix_t convert_color(gfxbitmap_color_t color) {
+    return gfxbitmap_convert_color(info(), color);
+  }
+
+  void _fill(ulong x, ulong y, ulong w, ulong h, gfxbitmap_color_pix_t color) {
+    gfxbitmap_fill((l4_uint8_t*)_addr, info(), x, y, w, h, color);
+  }
+
+  void fill(ulong x, ulong y, ulong w, ulong h) {
+    _fill(x, y, w, h, _fg);
+  }
+
+  void fill() {
+    fill(0, 0, _info.width, _info.height);
+  }
+
+  void clear() {
+    _fill(0, 0, _info.width, _info.height, _bg);
+  }
+
+  void text(ulong x, ulong y, const char *s) {
+    gfxbitmap_font_text(_addr, info(), GFXBITMAP_DEFAULT_FONT, s, GFXBITMAP_USE_STRLEN, x, y, _fg, _bg);
+  }
+
+  void fg(gfxbitmap_color_t fg) {
+    _fg = convert_color(fg);
+  }
+
+  void bg(gfxbitmap_color_t bg) {
+    _bg = convert_color(bg);
+  }
+};
 
 int main()
 {
   printf("Let's do it!\n");
-  FB fb;
-  print_goos_info(fb);
-  memset(fb.addr, 0xFF, fb.size);
+  Gfx gfx;
+  gfx.text(0, 0, "hi world!!");
 
   SessionServer session;
   if (!server.registry()->register_obj(&session, "bye_server").is_valid())
