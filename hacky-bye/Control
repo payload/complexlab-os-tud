@@ -1,0 +1,3 @@
+provides:
+requires: libc_be_mem
+maintainer: nobody
