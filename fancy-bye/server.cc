@@ -190,6 +190,9 @@ struct TextView {
 
   void draw(Gfx &gfx) {
     if (!lines) return;
+
+    gfx.clear();
+
     ulong y;
     Line *line;
     ulong line_height = gfx.font_height();
@@ -242,6 +245,9 @@ int main()
     tv.draw(gfx);
     usleep(50000);
   }
+
+  tv.cur_line = tv.lst_line;
+  tv.draw(gfx);
 
   SessionServer session;
   if (!server.registry()->register_obj(&session, "bye_server").is_valid())
