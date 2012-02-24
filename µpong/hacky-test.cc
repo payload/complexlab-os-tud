@@ -18,9 +18,9 @@ int main(int argc, char **argv) {
   DEBUG = argc > 1 && strcmp(argv[1], "DEBUG") == 0;
   printf("Yeah, let's hit it!\n");
 
-  Cap<void> keyboard = Env::env()->get_cap<void>("keyboard");
+  Cap<void> keyboard = Env::env()->get_cap<void>("hacky");
   if (!keyboard.is_valid()) {
-    err("no keyboard");
+    err("no \"hacky\"");
     return -1;
   }
 

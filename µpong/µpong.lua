@@ -2,9 +2,9 @@ require("L4")
 local ld = L4.default_loader
 
 local ps2 = ld:new_channel()
-local keyboard = ld:new_channel()
 local fbdrv = ld:new_channel()
 local fb = ld:new_channel()
+local hacky = ld:new_channel()
 
 local sigma0_cap =
    L4.cast(L4.Proto.Factory, L4.Env.sigma0)
@@ -17,7 +17,7 @@ ld:start({
                icu    = L4.Env.icu, -- TEST for exclusion
                sigma0 = sigma0_cap,
             },
-            log = { "io", "W" },
+            log = { "io", "B" },
          }, "rom/io rom/vbus-config.vbus rom/x86-legacy.devs rom/x86-fb.io")
 
 ld:start({
@@ -25,7 +25,7 @@ ld:start({
                vbus = fbdrv,
                fb = fb:svr(),
             },
-            log = { "fb-drv", "O" },
+            log = { "fb-drv", "b" },
          }, "rom/fb-drv -m 0x112")
 
 ld:start({
@@ -38,21 +38,21 @@ ld:start({
 ld:start({
 	    caps = {
 	       vbus = ps2,
-	       keyboard = keyboard:svr(),
+	       hacky = hacky:svr(),
 	    },
 	    log = { "hacky", "R" },
 	 }, "rom/hacky")
 
 ld:start({
 	    caps = {
-	       keyboard = keyboard:create(0),
+	       hacky = hacky:create(0),
 	    },
 	    log = { "hackyC1", "r" },
 	 }, "rom/hacky-test DEBUG");
 
 ld:start({
 	    caps = {
-	       keyboard = keyboard:create(0),
+	       hacky = hacky:create(0),
 	    },
-	    log = { "hackyC2", "b" },
+	    log = { "hackyC2", "r" },
 	 }, "rom/hacky-test DEBUG");

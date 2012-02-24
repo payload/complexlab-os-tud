@@ -172,9 +172,9 @@ int main(int argc, char **argv) {
   pthread_t irq_thread;
   pthread_create(&irq_thread, NULL, irq_main, NULL);
 
-  L4::Cap<void> cap = registry->register_obj(&session_server, "keyboard");
+  L4::Cap<void> cap = registry->register_obj(&session_server, "hacky");
   if (!cap.is_valid()) {
-    printf("ERROR registering at \"keyboard\"\n");
+    printf("ERROR registering at \"hacky\"\n");
     return -1;
   }
 
