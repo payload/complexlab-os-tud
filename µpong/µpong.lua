@@ -22,19 +22,19 @@ ld:start({
 	       vbus = ps2,
 	       keyboard = keyboard:svr(),
 	    },
-	    log = { "keyboard", "R" },
-	 }, "rom/keyboard")
+	    log = { "hacky", "R" },
+	 }, "rom/hacky")
 
 ld:start({
 	    caps = {
 	       keyboard = keyboard:create(0),
 	    },
-	    log = { "keytest1", "r" },
-	 }, "rom/keytest DEBUG");
+	    log = { "hackyC1", "r" },
+	 }, "rom/hacky-test DEBUG");
 
 ld:start({
 	    caps = {
 	       keyboard = keyboard:create(0),
 	    },
-	    log = { "keytest2", "b" },
-	 }, "rom/keytest DEBUG");
+	    log = { "hackyC2", "b" },
+	 }, "rom/hacky-test DEBUG");

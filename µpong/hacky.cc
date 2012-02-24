@@ -75,11 +75,11 @@ L4Re::Util::Object_registry *registry = registry_server.registry();
 
 bool DEBUG;
 
-struct KeyboardServer : public L4::Server_object {
+struct HackyServer : public L4::Server_object {
   unsigned session;
   l4_cap_idx_t client;
 
-  KeyboardServer(unsigned session)
+  HackyServer(unsigned session)
     : session(session), client(0) {}
   
   int dispatch(l4_umword_t, L4::Ipc::Iostream &ios) {
@@ -95,7 +95,7 @@ struct KeyboardServer : public L4::Server_object {
   }
 };
 
-SessionServer<KeyboardServer> session_server(registry);
+SessionServer<HackyServer> session_server(registry);
 
 const char *us_keymap =
   K_ERROR K_ESC "1234567890-=" K_BACKSPACE "\tqwertyuiop[]\n" K_LCTRL "asdfghjkl;'`" K_LSHIFT // 2a
@@ -119,7 +119,7 @@ void err(const char *s) {
 
 void broadcast_key_event(bool release, l4_uint8_t scan, char key, bool shift) {
   
-  list<KeyboardServer*>::iterator i;
+  list<HackyServer*>::iterator i;
   for (i  = session_server.sessions.begin();
        i != session_server.sessions.end();
        ++i) {
