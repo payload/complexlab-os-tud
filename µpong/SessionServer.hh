@@ -10,12 +10,11 @@ using L4Re::Util::Object_registry;
 template <typename ServerType>
 struct SessionServer : public L4::Server_object
 {
-  unsigned sessions_n;
   list<ServerType*> sessions;
   Object_registry *registry;
 
   SessionServer(Object_registry *registry)
-    : L4::Server_object(), sessions_n(0), registry(registry) {}
+    : L4::Server_object(), registry(registry) {}
   int dispatch(l4_umword_t, L4::Ipc::Iostream &ios);
 };
 
@@ -37,7 +36,7 @@ method(int) dispatch(l4_umword_t, L4::Ipc::Iostream &ios) {
     unsigned op;
     ios >> op;
     if (op != 0) return -L4_EINVAL;
-    ServerType *server = new ServerType(++sessions_n);
+    ServerType *server = new ServerType();
     sessions.push_back(server);
     registry->register_obj(server);
     ios << server->obj_cap();

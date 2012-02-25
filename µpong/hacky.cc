@@ -76,12 +76,8 @@ L4Re::Util::Object_registry *registry = registry_server.registry();
 bool DEBUG;
 
 struct HackyServer : public L4::Server_object {
-  unsigned session;
   l4_cap_idx_t client;
-
-  HackyServer(unsigned session)
-    : session(session), client(0) {}
-  
+  HackyServer() : client(0) {}
   int dispatch(l4_umword_t, L4::Ipc::Iostream &ios) {
     l4_uint8_t op;
     ios >> op;
