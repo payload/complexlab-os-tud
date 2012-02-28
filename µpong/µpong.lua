@@ -5,6 +5,7 @@ local ps2 = ld:new_channel()
 local fbdrv = ld:new_channel()
 local fb = ld:new_channel()
 local hacky = ld:new_channel()
+local fancy = ld:new_channel()
 
 local sigma0_cap =
    L4.cast(L4.Proto.Factory, L4.Env.sigma0)
@@ -31,9 +32,19 @@ ld:start({
 ld:start({
 	    caps = {
 	       fb = fb,
+	       fancy = fancy:svr(),
 	    },
 	    log = { "fancy", "Y" },
-	 }, "rom/fancy")
+	 }, "rom/fancy DEBUG")
+
+for i=1,1 do
+   ld:start({
+	       caps = {
+		  fancy = fancy:create(0),
+	       },
+	       log = { "fancy "..i, "y" },
+	    }, "rom/fancy-test DEBUG");
+end
 
 ld:start({
 	    caps = {
@@ -43,16 +54,11 @@ ld:start({
 	    log = { "hacky", "R" },
 	 }, "rom/hacky")
 
-ld:start({
-	    caps = {
-	       hacky = hacky:create(0),
-	    },
-	    log = { "hackyC1", "r" },
-	 }, "rom/hacky-test DEBUG");
-
-ld:start({
-	    caps = {
-	       hacky = hacky:create(0),
-	    },
-	    log = { "hackyC2", "r" },
-	 }, "rom/hacky-test DEBUG");
+for i=1,2 do
+   ld:start({
+	       caps = {
+		  hacky = hacky:create(0),
+	       },
+	       log = { "hacky "..i, "r" },
+	    }, "rom/hacky-test DEBUG");
+end

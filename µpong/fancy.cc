@@ -9,166 +9,43 @@
 
 #include <l4/re/video/goos>
 #include <l4/re/util/video/goos_fb>
-#include <l4/libgfxbitmap/bitmap.h>
-#include <l4/libgfxbitmap/font.h>
 
 #include <unistd.h>
 
-typedef unsigned long ulong;
-typedef unsigned char byte;
+#include "gfx.hh"
+#include "textview.hh"
+#include "SessionServer.hh"
+#include <l4/re/util/dataspace_svr>
 
-struct Color {
-  byte b;
-  byte g;
-  byte r;
-  Color(byte r, byte g, byte b) : b(b), g(g), r(r) {}
-};
+L4Re::Util::Registry_server<> registry_server;
+L4Re::Util::Object_registry *registry = registry_server.registry();
 
-int print_error(const char *s)
-{
-  printf("%s\n", s);
-  return -1;
-}
+using L4::Cap;
+using L4Re::Dataspace;
+using L4Re::Util::cap_alloc;
+using L4Re::Env;
+using L4Re::Util::Dataspace_svr;
+using L4::Ipc::Iostream;
 
-struct Gfx {
-  L4Re::Util::Video::Goos_fb _goos;  
-  L4Re::Video::View::Info _info;
-  void *_addr;
-  gfxbitmap_color_pix_t _fg;
-  gfxbitmap_color_pix_t _bg;
+l4_addr_t fb_addr = 0;
+l4_size_t fb_size = 0;
+L4Re::Video::View::Info fb_info;
 
-  Gfx() : _goos("fb") {
-    _goos.view_info(&_info);
-    _addr = _goos.attach_buffer();
-    gfxbitmap_font_init();
-    fg(0);
-    bg(0xFFFFFF);
-    clear();
+struct FancyServer : Dataspace_svr, L4::Server_object {
+
+  FancyServer()
+    : Dataspace_svr(), L4::Server_object() {
+    _ds_start = fb_addr;
+    _ds_size = fb_size;
+    _rw_flags = Writable;
   }
 
-  l4re_video_view_info_t *info() {
-    return (l4re_video_view_info_t*)&_info;
+  int dispatch(l4_umword_t o, Iostream &ios) {
+    o |= L4_FPAGE_X;
+    return Dataspace_svr::dispatch(o, ios);
   }
 
-  gfxbitmap_color_pix_t convert_color(gfxbitmap_color_t color) {
-    return gfxbitmap_convert_color(info(), color);
-  }
-
-  void _fill(ulong x, ulong y, ulong w, ulong h, gfxbitmap_color_pix_t color) {
-    gfxbitmap_fill((l4_uint8_t*)_addr, info(), x, y, w, h, color);
-  }
-
-  void fill(ulong x, ulong y, ulong w, ulong h) {
-    _fill(x, y, w, h, _fg);
-  }
-
-  void fill() {
-    fill(0, 0, _info.width, _info.height);
-  }
-
-  void clear(ulong x, ulong y, ulong w, ulong h) {
-    _fill(x, y, w, h, _bg);
-  }
-
-  void clear() {
-    _fill(0, 0, _info.width, _info.height, _bg);
-  }
-
-  void text(ulong x, ulong y, const char *s) {
-    gfxbitmap_font_text(_addr, info(), GFXBITMAP_DEFAULT_FONT, s, GFXBITMAP_USE_STRLEN, x, y, _fg, _bg);
-  }
-
-  void fg(gfxbitmap_color_t fg) {
-    _fg = convert_color(fg);
-  }
-
-  void bg(gfxbitmap_color_t bg) {
-    _bg = convert_color(bg);
-  }
-
-  ulong height() {
-    return _info.height;
-  }
-
-  ulong width() {
-    return _info.width;
-  }
-
-  ulong font_height() {
-    return gfxbitmap_font_height(GFXBITMAP_DEFAULT_FONT);
-  }
-};
-
-struct Line {
-  ulong nr;
-  Line *prev;
-  Line *next;
-  const char *text;
-
-  Line(ulong nr, const char *text)
-    : nr(nr), prev(NULL), next(NULL), text(text) {}
-  Line(ulong nr, const char *text, Line *prev)
-    : nr(nr), prev(prev), next(NULL), text(text) {}
-  Line(ulong nr, const char *text, Line *prev, Line *next)
-    : nr(nr), prev(prev), next(next), text(text) {}
-};
-
-struct TextView {
-  Line *top_line;
-  Line *lst_line;
-  Line *cur_line;
-  ulong lines;
-  
-  TextView()
-    : top_line(NULL), lst_line(NULL), cur_line(NULL), lines(0) {}
-
-  void append_line(const char *s) {
-    if (lst_line) {
-      lst_line->next = new Line(++lines, s, lst_line);
-      lst_line = lst_line->next;
-      cur_line = lst_line;
-    }
-    else {
-      lst_line = new Line(++lines, s);
-      top_line = lst_line;
-      cur_line = lst_line;
-    }
-  }
-
-  void draw(Gfx &gfx) {
-    if (!lines) return;
-
-    gfx.clear();
-
-    ulong y;
-    Line *line;
-    ulong line_height = gfx.font_height();
-    ulong lines_per_screen = gfx.height() / line_height;
-
-    while (top_line->nr > cur_line->nr)
-      top_line = top_line->prev;
-    
-    line = cur_line;
-    y = 1;
-    while (line) {
-      if (line == top_line)
-	break;
-      if (y == lines_per_screen)
-	break;
-      ++y;
-      line = line->prev;
-    }
-    top_line = line;
-
-    y = 0;
-    while (line && y < gfx.height()) {
-      if (line == cur_line) gfx.bg(0xDDDDDD);
-      gfx.clear(0, y, gfx.width(), line_height);
-      gfx.text(0, y, line->text);
-      if (line == cur_line) gfx.bg(0xFFFFFF);
-      y += line_height;
-      line = line->next;
-    }
+  ~FancyServer() throw () {
   }
 };
 
@@ -176,7 +53,44 @@ int main()
 {
   printf("Let's face it!\n");
 
-  Gfx gfx;
+  L4Re::Util::Video::Goos_fb fb("fb");
+  L4Re::Video::View::Info _info;
+  fb.view_info(&fb_info);
+  fb_addr = (l4_addr_t)fb.attach_buffer();
+  Cap<Dataspace> fb_ds = fb.buffer();
+  fb_size = fb_ds->size();
+
+  l4_addr_t paddr;
+  l4_size_t psize;
+  fb_ds->phys(0, paddr, psize);
+  printf("FB_DS %p %x %p %x\n", (void*)fb_addr, fb_size, (void*)paddr, psize);
+  
+  SessionServer<FancyServer> session_server(registry);
+  registry->register_obj(&session_server, "fancy");
+
+  /*
+  *(int*)fb_addr = 5;
+  printf("%x\n", *(int*)fb_addr);
+
+  Cap<Dataspace> ds2 = cap_alloc.alloc<L4Re::Dataspace>();
+  Env::env()->mem_alloc()->alloc(ds->size(), ds2);
+  printf("map %li\n",
+	 ds2->map(0, Dataspace::Map_rw, (l4_addr_t)addr, (l4_addr_t)addr, (l4_addr_t)addr + ds->size()));
+
+  printf("%x\n", *(int*)addr);
+
+  printf("map %li\n",
+	 ds->map(0, Dataspace::Map_rw, (l4_addr_t)addr, (l4_addr_t)addr, (l4_addr_t)addr + ds->size()));
+
+  printf("%x\n", *(int*)addr);
+  */
+
+  Gfx gfx((void*)fb_addr, fb_info);
+  gfx.fg(0xDD4444);
+  gfx.fill(0, 0, 100, 100);
+  fb.goos();
+
+  /*
   TextView tv;
 
   for (ulong i = 0; i < 50; ++i) {
@@ -195,8 +109,8 @@ int main()
 
   tv.cur_line = tv.lst_line;
   tv.draw(gfx);
+  */
 
-  for (;;);
-
+  registry_server.loop();
   return 0;
 }
