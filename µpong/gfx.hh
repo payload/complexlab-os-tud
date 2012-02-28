@@ -17,7 +17,7 @@ struct Gfx {
     gfxbitmap_font_init();
     fg(0);
     bg(0xFFFFFF);
-    clear();
+    //clear();
   }
 
   l4re_video_view_info_t *info() {

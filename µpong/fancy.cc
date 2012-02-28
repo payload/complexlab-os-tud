@@ -9,6 +9,7 @@
 
 #include <l4/re/video/goos>
 #include <l4/re/util/video/goos_fb>
+#include <l4/re/util/video/goos_svr>
 
 #include <unistd.h>
 
@@ -16,6 +17,8 @@
 #include "textview.hh"
 #include "SessionServer.hh"
 #include <l4/re/util/dataspace_svr>
+#include <l4/util/util.h>
+#include <l4/cxx/iostream>
 
 L4Re::Util::Registry_server<> registry_server;
 L4Re::Util::Object_registry *registry = registry_server.registry();
@@ -26,26 +29,52 @@ using L4Re::Util::cap_alloc;
 using L4Re::Env;
 using L4Re::Util::Dataspace_svr;
 using L4::Ipc::Iostream;
+using L4Re::Util::Video::Goos_fb;
+using L4::cout;
 
 l4_addr_t fb_addr = 0;
 l4_size_t fb_size = 0;
-L4Re::Video::View::Info fb_info;
+Cap<Dataspace> fb_ds;
+Goos_fb *goos_fb;
 
-struct FancyServer : Dataspace_svr, L4::Server_object {
+struct Vfb : Dataspace_svr, L4::Server_object {
 
-  FancyServer()
+  Vfb()
     : Dataspace_svr(), L4::Server_object() {
     _ds_start = fb_addr;
-    _ds_size = fb_size;
+    _ds_size  = fb_size;
     _rw_flags = Writable;
+
+    /*
+    printf("unmap!\n");
+    Env::env()->task()->unmap(obj_cap().fpage(), L4_FP_OTHER_SPACES);
+    printf("unmap!\n");
+    */
   }
 
   int dispatch(l4_umword_t o, Iostream &ios) {
+    cout << "Vfb dispatch!\n";
     o |= L4_FPAGE_X;
     return Dataspace_svr::dispatch(o, ios);
   }
 
-  ~FancyServer() throw () {
+  ~Vfb() throw () {
+  }
+};
+
+struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
+  
+  Vfb vfb;
+
+  FancyServer() {
+    _fb_ds = goos_fb->buffer();
+    goos_fb->goos()->info(&_screen_info);
+    goos_fb->view_info(&_view_info); // XXX init_infos() is lame
+  }
+
+  int dispatch(l4_umword_t o, Iostream &ios) {
+    cout << "Fancy dispatch!\n";
+    return Goos_svr::dispatch(o, ios);
   }
 };
 
@@ -53,64 +82,22 @@ int main()
 {
   printf("Let's face it!\n");
 
-  L4Re::Util::Video::Goos_fb fb("fb");
-  L4Re::Video::View::Info _info;
-  fb.view_info(&fb_info);
-  fb_addr = (l4_addr_t)fb.attach_buffer();
-  Cap<Dataspace> fb_ds = fb.buffer();
-  fb_size = fb_ds->size();
+  goos_fb = new Goos_fb("fb");
+  fb_addr = (l4_addr_t)goos_fb->attach_buffer();
+  fb_size = goos_fb->buffer()->size();
 
-  l4_addr_t paddr;
-  l4_size_t psize;
-  fb_ds->phys(0, paddr, psize);
-  printf("FB_DS %p %x %p %x\n", (void*)fb_addr, fb_size, (void*)paddr, psize);
-  
   SessionServer<FancyServer> session_server(registry);
   registry->register_obj(&session_server, "fancy");
 
-  /*
-  *(int*)fb_addr = 5;
-  printf("%x\n", *(int*)fb_addr);
-
-  Cap<Dataspace> ds2 = cap_alloc.alloc<L4Re::Dataspace>();
-  Env::env()->mem_alloc()->alloc(ds->size(), ds2);
-  printf("map %li\n",
-	 ds2->map(0, Dataspace::Map_rw, (l4_addr_t)addr, (l4_addr_t)addr, (l4_addr_t)addr + ds->size()));
-
-  printf("%x\n", *(int*)addr);
-
-  printf("map %li\n",
-	 ds->map(0, Dataspace::Map_rw, (l4_addr_t)addr, (l4_addr_t)addr, (l4_addr_t)addr + ds->size()));
-
-  printf("%x\n", *(int*)addr);
-  */
-
+  L4Re::Video::View::Info fb_info;
+  goos_fb->view_info(&fb_info);
   Gfx gfx((void*)fb_addr, fb_info);
   gfx.fg(0xDD4444);
   gfx.fill(0, 0, 100, 100);
-  fb.goos();
 
-  /*
-  TextView tv;
-
-  for (ulong i = 0; i < 50; ++i) {
-    char *s = new char[4];
-    sprintf(s, "%lu", i);
-    tv.append_line(s);
-    tv.draw(gfx);
-    usleep(50000);
-  }
-
-  while (tv.cur_line->nr > 1) {
-    tv.cur_line = tv.cur_line->prev;
-    tv.draw(gfx);
-    usleep(50000);
-  }
-
-  tv.cur_line = tv.lst_line;
-  tv.draw(gfx);
-  */
+  cout << "Splash!!\n";
 
   registry_server.loop();
+  delete goos_fb;
   return 0;
 }

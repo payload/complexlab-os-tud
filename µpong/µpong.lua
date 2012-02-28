@@ -37,7 +37,7 @@ ld:start({
 	    log = { "fancy", "Y" },
 	 }, "rom/fancy DEBUG")
 
-for i=1,1 do
+for i=1,2 do
    ld:start({
 	       caps = {
 		  fancy = fancy:create(0),
