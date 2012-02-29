@@ -6,6 +6,7 @@
 #include <l4/re/util/video/goos_svr>
 #include <l4/re/util/dataspace_svr>
 #include <l4/cxx/iostream>
+#include <vector>
 
 using namespace L4;
 using namespace L4Re;
@@ -61,15 +62,33 @@ struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
     cout << "Fancy dispatch!\n";
     return Goos_svr::dispatch(o, ios);
   }
+
+  void switch_off() {
+  }
+
+  void switch_on() {
+  }
 };
+
+SessionServer<FancyServer> session_server(registry);
+
+unsigned cur_vfb = 0;
+
+void switch_vfb(unsigned i) {
+  i %= session_server.sessions.size();
+  if (i == cur_vfb) return;
+  if (!session_server.sessions.empty())
+    session_server.sessions[cur_vfb]->switch_off();
+  session_server.sessions[i]->switch_on();
+  cur_vfb = i;
+  cout << "CUR VFB " << cur_vfb << "\n";
+}
 
 struct MyHacky : Hacky {
   void key_event(bool release, l4_uint8_t, char key, bool) {
     if (release) return;
-    if (key == '\xe2')
-      cout << "left\n";
-    else if (key == '\xe3')
-      cout << "right\n";
+    if (key == '\xe2') switch_vfb(cur_vfb - 1);
+    else if (key == '\xe3') switch_vfb(cur_vfb + 1);
   }
 };
 
@@ -91,7 +110,6 @@ int main()
 
   MyHacky hacky;
 
-  SessionServer<FancyServer> session_server(registry);
   registry->register_obj(&session_server, "fancy");
   registry->register_obj(&hacky);
   hacky.connect(Env::env()->get_cap<void>("hacky"));
