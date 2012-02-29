@@ -1,36 +1,20 @@
-#include <stdio.h>
-#include <cstring>
-#include <l4/re/env>
-#include <l4/re/util/cap_alloc>
-#include <l4/re/util/object_registry>
-#include <l4/re/util/meta>
-#include <l4/cxx/ipc_server>
-#include <l4/util/bitops.h>
-
-#include <l4/re/video/goos>
-#include <l4/re/util/video/goos_fb>
-#include <l4/re/util/video/goos_svr>
-
-#include <unistd.h>
-
 #include "gfx.hh"
 #include "textview.hh"
 #include "SessionServer.hh"
+#include <l4/re/util/video/goos_fb>
+#include <l4/re/util/video/goos_svr>
 #include <l4/re/util/dataspace_svr>
-#include <l4/util/util.h>
 #include <l4/cxx/iostream>
 
-L4Re::Util::Registry_server<> registry_server;
-L4Re::Util::Object_registry *registry = registry_server.registry();
+using namespace L4;
+using namespace L4Re;
+using namespace L4Re::Util;
 
-using L4::Cap;
-using L4Re::Dataspace;
-using L4Re::Util::cap_alloc;
-using L4Re::Env;
-using L4Re::Util::Dataspace_svr;
-using L4::Ipc::Iostream;
+using Ipc::Iostream;
 using L4Re::Util::Video::Goos_fb;
-using L4::cout;
+
+Registry_server<> registry_server;
+Object_registry *registry = registry_server.registry();
 
 l4_addr_t fb_addr = 0;
 l4_size_t fb_size = 0;
