@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <cstdio>
 #include <cstring>
 #include <l4/re/env>
 #include <l4/re/util/cap_alloc>
@@ -12,6 +12,7 @@
 #include <l4/cxx/iostream>
 #include <l4/cxx/l4iostream>
 #include "gfx.hh"
+#include <sstream>
 
 using L4::Cap;
 using L4Re::Env;
@@ -22,17 +23,20 @@ using L4::Ipc::Small_buf;
 using L4Re::Video::Goos;
 using L4Re::chksys;
 using L4Re::chkcap;
-using L4::cout;
-using L4::cerr;
 using L4Re::Util::Video::Goos_fb;
 
 using L4::Runtime_error;
 
+using namespace L4;
+
 bool DEBUG;
 
 int main(int argc, char **argv) {
-  DEBUG = argc > 1 && strcmp(argv[1], "DEBUG") == 0;
-  cout << "Yeah, let's face it!\n";
+  DEBUG = strcmp(argv[argc-1], "DEBUG") == 0;
+  unsigned color;
+  std::stringstream(argv[1]) >> std::hex >> color;
+  color |= 0xFF000000;
+  cout << "Yeah, let's face it!\n" << hex << color << "\n";
   try {
     l4_addr_t fb_addr;
     l4_size_t fb_size;
@@ -46,7 +50,7 @@ int main(int argc, char **argv) {
     cout << "Fancy!\n";
 
     Gfx gfx((void*)fb_addr, fb_info);
-    gfx.fg(0x00AA00);
+    gfx.fg(color);
     gfx.fill(100, 100, 200, 200);
     
     cout << "Drawn?\n";
