@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   unsigned color;
   std::stringstream(argv[1]) >> std::hex >> color;
   color |= 0xFF000000;
-  cout << "Yeah, let's face it!\n" << hex << color << "\n";
+  cout << "Yeah, let's face it!\n";
   try {
     l4_addr_t fb_addr;
     l4_size_t fb_size;
@@ -46,14 +46,9 @@ int main(int argc, char **argv) {
     fb_addr = (l4_addr_t)fb.attach_buffer();
     Cap<Dataspace> fb_ds = fb.buffer();
     fb_size = fb_ds->size();
-
-    cout << "Fancy!\n";
-
     Gfx gfx((void*)fb_addr, fb_info);
     gfx.fg(color);
-    //for (;;)
     gfx.fill(100, 100, 200, 200);
-
   } catch(Runtime_error &e) {
     cerr << e;
   }
