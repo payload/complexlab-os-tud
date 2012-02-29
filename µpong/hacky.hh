@@ -4,7 +4,7 @@
 using namespace L4;
 
 struct Hacky : Server_object {
-  l4_msgtag_t connect(Cap<void> &hacky) {
+  l4_msgtag_t connect(Cap<void> hacky) {
     Ipc::Iostream ios(l4_utcb());
     ios << 1 << obj_cap();
     return ios.call(hacky.cap());
