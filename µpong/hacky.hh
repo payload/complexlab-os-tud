@@ -1,3 +1,4 @@
+#pragma once
 #include <l4/cxx/ipc_server>
 #include <l4/re/error_helper>
 
