@@ -1,6 +1,7 @@
 #include "gfx.hh"
 #include "textview.hh"
 #include "SessionServer.hh"
+#include "hacky.hh"
 #include <l4/re/util/video/goos_fb>
 #include <l4/re/util/video/goos_svr>
 #include <l4/re/util/dataspace_svr>
@@ -62,6 +63,12 @@ struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
   }
 };
 
+struct MyHacky : Hacky {
+  void key_event(bool release, l4_uint8_t, char key, bool) {
+    cout << release << " " << key << "\n";
+  }
+};
+
 int main()
 {
   printf("Let's face it!\n");
@@ -69,9 +76,6 @@ int main()
   goos_fb = new Goos_fb("fb");
   fb_addr = (l4_addr_t)goos_fb->attach_buffer();
   fb_size = goos_fb->buffer()->size();
-
-  SessionServer<FancyServer> session_server(registry);
-  registry->register_obj(&session_server, "fancy");
 
   L4Re::Video::View::Info fb_info;
   goos_fb->view_info(&fb_info);
@@ -81,6 +85,12 @@ int main()
 
   cout << "Splash!!\n";
 
+  MyHacky hacky;
+
+  SessionServer<FancyServer> session_server(registry);
+  registry->register_obj(&session_server, "fancy");
+  registry->register_obj(&hacky);
+  hacky.connect(Env::env()->get_cap<void>("hacky"));
   registry_server.loop();
   delete goos_fb;
   return 0;

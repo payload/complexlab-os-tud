@@ -31,8 +31,17 @@ ld:start({
 
 ld:start({
 	    caps = {
+	       vbus = ps2,
+	       hacky = hacky:svr(),
+	    },
+	    log = { "hacky", "R" },
+	 }, "rom/hacky")
+
+ld:start({
+	    caps = {
 	       fb = fb,
 	       fancy = fancy:svr(),
+	       hacky = hacky:create(0),
 	    },
 	    log = { "fancy", "Y" },
 	 }, "rom/fancy DEBUG")
@@ -47,19 +56,11 @@ for i=1,2 do
 	    }, "rom/fancy-test "..colors[i].." DEBUG");
 end
 
-ld:start({
-	    caps = {
-	       vbus = ps2,
-	       hacky = hacky:svr(),
-	    },
-	    log = { "hacky", "R" },
-	 }, "rom/hacky")
-
 for i=1,2 do
    ld:start({
 	       caps = {
 		  hacky = hacky:create(0),
 	       },
 	       log = { "hacky "..i, "r" },
-	    }, "rom/hacky-test DEBUG");
+	    }, "rom/hacky-test");
 end
