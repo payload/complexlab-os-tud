@@ -1,17 +1,10 @@
 #pragma once
 #include <l4/cxx/ipc_server>
-#include <l4/re/error_helper>
 
 using namespace L4;
-using namespace L4Re;
 
 struct Hacky : Server_object {
-  Cap<void> &hacky;
-  Hacky(Cap<void> &hacky) : hacky(hacky) {
-    chkcap(hacky, "not hacky...");
-  }
-
-  l4_msgtag_t connect() {
+  l4_msgtag_t connect(Cap<void> &hacky) {
     Ipc::Iostream ios(l4_utcb());
     ios << 1 << obj_cap();
     return ios.call(hacky.cap());
