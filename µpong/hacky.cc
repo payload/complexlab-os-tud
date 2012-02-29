@@ -115,7 +115,7 @@ void err(const char *s) {
 
 void broadcast_key_event(bool release, l4_uint8_t scan, char key, bool shift) {
   
-  list<HackyServer*>::iterator i;
+  std::vector<HackyServer*>::iterator i;
   for (i  = session_server.sessions.begin();
        i != session_server.sessions.end();
        ++i) {

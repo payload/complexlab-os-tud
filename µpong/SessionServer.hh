@@ -2,15 +2,14 @@
 #include <l4/re/util/cap_alloc>
 #include <l4/re/util/object_registry>
 #include <l4/cxx/ipc_server>
-#include <list>
+#include <vector>
 
-using std::list;
 using L4Re::Util::Object_registry;
 
 template <typename ServerType>
 struct SessionServer : public L4::Server_object
 {
-  list<ServerType*> sessions;
+  std::vector<ServerType*> sessions;
   Object_registry *registry;
 
   SessionServer(Object_registry *registry)
