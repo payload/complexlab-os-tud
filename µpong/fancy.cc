@@ -1,5 +1,3 @@
-#include "gfx.hh"
-#include "textview.hh"
 #include "SessionServer.hh"
 #include "hacky.hh"
 #include <l4/re/util/video/goos_fb>
@@ -22,6 +20,7 @@ l4_addr_t fb_addr = 0;
 l4_size_t fb_size = 0;
 Cap<Dataspace> fb_ds;
 Goos_fb *goos_fb;
+int DEBUG;
 
 struct Vfb : Dataspace_svr, L4::Server_object {
 
@@ -86,14 +85,12 @@ struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
   }
 
   void switch_off() {
-    cout << "***** OFF\n";
     memcpy((void*)vfb.addr, (void*)fb_addr, fb_size);
     vfb.ds_start(vfb.addr);
     vfb.unmap();
   }
 
   void switch_on() {
-    cout << "***** ON\n";
     memcpy((void*)fb_addr, (void*)vfb.addr, fb_size);
     vfb.ds_start(fb_addr);
     vfb.unmap();
@@ -109,7 +106,7 @@ void switch_vfb(int i) {
     session_server.sessions[cur_vfb]->switch_off();
   session_server.sessions[i]->switch_on();
   cur_vfb = i;
-  cout << "CUR VFB " << cur_vfb << "\n";
+  if (DEBUG) cout << "CUR VFB " << cur_vfb << "\n";
 }
 
 struct MyHacky : Hacky {
@@ -120,24 +117,15 @@ struct MyHacky : Hacky {
   }
 };
 
-int main()
+int main(int argc, char **argv)
 {
+  DEBUG = strcmp(argv[argc-1], "DEBUG") == 0;
   printf("Let's face it!\n");
-
   goos_fb = new Goos_fb("fb");
   fb_addr = (l4_addr_t)goos_fb->attach_buffer();
   fb_size = goos_fb->buffer()->size();
-
-  L4Re::Video::View::Info fb_info;
-  goos_fb->view_info(&fb_info);
-  Gfx gfx((void*)fb_addr, fb_info);
-  gfx.fg(0xDD4444);
-  gfx.fill(0, 0, 100, 100);
-
-  cout << "Splash!!\n";
-
+  memset((void*)fb_addr, 0, fb_size);
   MyHacky hacky;
-
   registry->register_obj(&session_server, "fancy");
   registry->register_obj(&hacky);
   hacky.connect(Env::env()->get_cap<void>("hacky"));
