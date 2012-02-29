@@ -119,10 +119,13 @@ void broadcast_key_event(bool release, l4_uint8_t scan, char key, bool shift) {
   for (i  = session_server.sessions.begin();
        i != session_server.sessions.end();
        ++i) {
-    L4::Ipc::Iostream ios(l4_utcb());
-    ios << release << scan << key << shift;
-    l4_msgtag_t tag = ios.send((*i)->client);
-    if (tag.has_error()) printf("ERROR %lx\n", l4_utcb_tcr()->error);
+    if (DEBUG) printf("client %p\n", (*i)->client);
+    if ((*i)->client) {
+      L4::Ipc::Iostream ios(l4_utcb());
+      ios << release << scan << key << shift;
+      l4_msgtag_t tag = ios.send((*i)->client);
+      if (tag.has_error()) printf("ERROR %lx\n", l4_utcb_tcr()->error);
+    }
   }
 }
 
