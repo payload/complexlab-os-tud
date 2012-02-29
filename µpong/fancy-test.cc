@@ -51,8 +51,8 @@ int main(int argc, char **argv) {
 
     Gfx gfx((void*)fb_addr, fb_info);
     gfx.fg(color);
-    for (;;)
-      gfx.fill(100, 100, 200, 200);
+    //for (;;)
+    gfx.fill(100, 100, 200, 200);
 
   } catch(Runtime_error &e) {
     cerr << e;

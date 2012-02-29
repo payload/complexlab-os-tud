@@ -25,56 +25,84 @@ Goos_fb *goos_fb;
 
 struct Vfb : Dataspace_svr, L4::Server_object {
 
+  Cap<Dataspace> ds;
+  l4_addr_t addr;
+
   Vfb()
     : Dataspace_svr(), L4::Server_object() {
-    _ds_start = fb_addr;
+
+    ds = cap_alloc.alloc<Dataspace>();
+    Env::env()->mem_alloc()->alloc(fb_size, ds);
+    Env::env()->rm()->attach(&addr, fb_size, Rm::Search_addr, ds, 0);
+    memset((void*)addr, 0, fb_size);
+
+    _ds_start = addr;
     _ds_size  = fb_size;
     _rw_flags = Writable;
-
-    /*
-    printf("unmap!\n");
-    Env::env()->task()->unmap(obj_cap().fpage(), L4_FP_OTHER_SPACES);
-    printf("unmap!\n");
-    */
   }
 
   int dispatch(l4_umword_t o, Iostream &ios) {
-    cout << "Vfb dispatch!\n";
     o |= L4_FPAGE_X;
     return Dataspace_svr::dispatch(o, ios);
   }
 
-  ~Vfb() throw () {
+  ~Vfb() throw () {}
+
+  void ds_start(l4_addr_t addr) { _ds_start = addr; }
+  l4_addr_t ds_start() { return _ds_start; }
+
+  void unmap() {
+    l4_addr_t addr = _ds_start;
+    while (addr < _ds_start + _ds_size) {
+      Env::env()->task()->unmap(l4_fpage(addr, 21, L4_FPAGE_RWX), L4_FP_OTHER_SPACES);
+      addr += 1024 * 2048;
+    }
   }
 };
+
+int cur_vfb = -1;
 
 struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
   
   Vfb vfb;
 
   FancyServer() {
-    _fb_ds = goos_fb->buffer();
+    registry->register_obj(&vfb);
+
     goos_fb->goos()->info(&_screen_info);
     goos_fb->view_info(&_view_info); // XXX init_infos() is lame
+    _fb_ds = cap_cast<Dataspace>(vfb.obj_cap());
+
+    //vfb.unmap();
+    //    vfb.ds_start(vfb.addr);
+    if (cur_vfb == -1) {
+      cur_vfb = 0;
+      vfb.ds_start(fb_addr);
+    }
   }
 
   int dispatch(l4_umword_t o, Iostream &ios) {
-    cout << "Fancy dispatch!\n";
     return Goos_svr::dispatch(o, ios);
   }
 
   void switch_off() {
+    cout << "***** OFF\n";
+    memcpy((void*)vfb.addr, (void*)fb_addr, fb_size);
+    vfb.ds_start(vfb.addr);
+    vfb.unmap();
   }
 
   void switch_on() {
+    cout << "***** ON\n";
+    memcpy((void*)fb_addr, (void*)vfb.addr, fb_size);
+    vfb.ds_start(fb_addr);
+    vfb.unmap();
   }
 };
 
 SessionServer<FancyServer> session_server(registry);
 
-unsigned cur_vfb = 0;
-
-void switch_vfb(unsigned i) {
+void switch_vfb(int i) {
   i %= session_server.sessions.size();
   if (i == cur_vfb) return;
   if (!session_server.sessions.empty())
