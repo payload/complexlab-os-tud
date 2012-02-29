@@ -65,7 +65,11 @@ struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
 
 struct MyHacky : Hacky {
   void key_event(bool release, l4_uint8_t, char key, bool) {
-    cout << release << " " << key << "\n";
+    if (release) return;
+    if (key == '\xe2')
+      cout << "left\n";
+    else if (key == '\xe3')
+      cout << "right\n";
   }
 };
 
