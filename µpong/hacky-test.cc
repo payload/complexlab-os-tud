@@ -3,47 +3,51 @@
 #include <l4/re/env>
 #include <l4/re/util/cap_alloc>
 #include <l4/cxx/ipc_stream>
+#include <l4/re/util/object_registry>
+#include <l4/re/error_helper>
 
-using L4::Cap;
-using L4Re::Env;
-using L4::Ipc::Iostream;
-
-void err(const char *s) {
-  printf("ERROR %s\n", s);
-}
+using namespace L4;
+using namespace L4Re;
 
 bool DEBUG;
 
-int main(int argc, char **argv) {
-  DEBUG = argc > 1 && strcmp(argv[1], "DEBUG") == 0;
-  printf("Yeah, let's hit it!\n");
-
-  Cap<void> keyboard = Env::env()->get_cap<void>("hacky");
-  if (!keyboard.is_valid()) {
-    err("no \"hacky\"");
-    return -1;
+struct Hacky : Server_object {
+  Cap<void> &hacky;
+  Hacky(Cap<void> &hacky) : hacky(hacky) {
+    chkcap(hacky, "not hacky...");
   }
 
-  Iostream s(l4_utcb());
-  s << 1 << Env::env()->main_thread();
-  s.call(keyboard.cap());
-  for (;;) {
-    s.reset();
-    l4_umword_t src;
-    // XXX want to have closed receive, but s.receive(keyboard.cap()) doesn't work
-    // I have to use the capability of the irq_thread for s.receive( ) on it
-    l4_msgtag_t tag = s.wait(&src);
-    if (tag.has_error()) {
-      printf("ERROR receive\n");
-      break;
-    }
-    
+  l4_msgtag_t connect() {
+    Ipc::Iostream ios(l4_utcb());
+    ios << 1 << obj_cap();
+    return ios.call(hacky.cap());
+  }
+
+  // override me!!
+  virtual void key_event(bool release, l4_uint8_t scan, char key, bool shift) {
+    (void)release; (void)scan; (void)key; (void)shift; // suppress warnings
+  }
+
+  int dispatch(l4_umword_t, Ipc::Iostream &ios) {
     bool release, shift;
     l4_uint8_t scan;
     char key;
-    s >> release >> scan >> key >> shift;
-    if (!(key & 128) && !release)
+    ios >> release >> scan >> key >> shift;
+    if (DEBUG && !(key & 128) && !release)
       printf("%c\n", key == '\n' ? ' ' : key);
+    key_event(release, scan, key, shift);
+    return 0;
   }
+};
+
+int main(int argc, char **argv) {
+  DEBUG = strcmp(argv[argc-1], "DEBUG") == 0;
+  printf("Yeah, let's hit it!\n");
+  Cap<void> hacky_cap = Env::env()->get_cap<void>("hacky");
+  Hacky hacky(hacky_cap);
+  Util::Registry_server<> registry_server;
+  registry_server.registry()->register_obj(&hacky);
+  hacky.connect();
+  registry_server.loop();
   return 0;
 }
