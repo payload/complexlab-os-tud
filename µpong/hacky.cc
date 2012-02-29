@@ -43,16 +43,16 @@ L4Re::Util::Object_registry *registry = registry_server.registry();
 #define K_KEYPAD_MUL "\xff"
 #define K_LALT "\xff"
 #define K_CAPSLOCK "\xff"
-#define K_F1 "\xff"
-#define K_F2 "\xff"
-#define K_F3 "\xff"
-#define K_F4 "\xff"
-#define K_F5 "\xff"
-#define K_F6 "\xff"
-#define K_F7 "\xff"
-#define K_F8 "\xff"
-#define K_F9 "\xff"
-#define K_F10 "\xff"
+#define K_F1 "\xe1"
+#define K_F2 "\xe2"
+#define K_F3 "\xe3"
+#define K_F4 "\xe4"
+#define K_F5 "\xe5"
+#define K_F6 "\xe6"
+#define K_F7 "\xe7"
+#define K_F8 "\xe8"
+#define K_F9 "\xe9"
+#define K_F10 "\xea"
 #define K_NUMLOCK "\xff"
 #define K_SCROLLLOCK "\xff"
 #define K_KEYPAD_7 "\xff"
@@ -70,8 +70,8 @@ L4Re::Util::Object_registry *registry = registry_server.registry();
 #define K_KEYPAD_DOT "\xff"
 #define K_ALT_SYSRQ "\xff"
 #define K_UNKNOWN "\xff"
-#define K_F11 "\xff"
-#define K_F12 "\xff"
+#define K_F11 "\xeb"
+#define K_F12 "\xec"
 
 bool DEBUG;
 
@@ -119,7 +119,7 @@ void broadcast_key_event(bool release, l4_uint8_t scan, char key, bool shift) {
   for (i  = session_server.sessions.begin();
        i != session_server.sessions.end();
        ++i) {
-    if (DEBUG) printf("client %p\n", (*i)->client);
+    if (DEBUG) printf("client %lx\n", (*i)->client);
     if ((*i)->client) {
       L4::Ipc::Iostream ios(l4_utcb());
       ios << release << scan << key << shift;
