@@ -46,6 +46,14 @@ ld:start({
 	    log = { "fancy", "Y" },
 	 }, "rom/fancy DEBUG")
 
+ld:start({
+	    caps = {
+	       fancy = fancy:create(0),
+	       hacky = hacky:create(0),
+	    },
+	    log = { "spammer", "G" },
+	 }, "rom/spammer DEBUG")
+
 local colors = { "0x0000FF00", "0x000000FF" }
 for i=1,2 do
    ld:start({
@@ -53,7 +61,7 @@ for i=1,2 do
 		  fancy = fancy:create(0),
 	       },
 	       log = { "fancy "..i, "y" },
-	    }, "rom/fancy-test "..colors[i].." DEBUG");
+	    }, "rom/fancy-test "..colors[i]);
 end
 
 for i=1,2 do
