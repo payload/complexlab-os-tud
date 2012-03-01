@@ -1,5 +1,5 @@
-#include "SessionServer.hh"
-#include "hacky.hh"
+#include <l4/µpong/SessionServer.hh>
+#include <l4/µpong/hacky.hh>
 #include <l4/re/util/video/goos_fb>
 #include <l4/re/util/video/goos_svr>
 #include <l4/re/util/dataspace_svr>
@@ -72,8 +72,6 @@ struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
     goos_fb->view_info(&_view_info); // XXX init_infos() is lame
     _fb_ds = cap_cast<Dataspace>(vfb.obj_cap());
 
-    //vfb.unmap();
-    //    vfb.ds_start(vfb.addr);
     if (cur_vfb == -1) {
       cur_vfb = 0;
       vfb.ds_start(fb_addr);
@@ -85,15 +83,15 @@ struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
   }
 
   void switch_off() {
-    memcpy((void*)vfb.addr, (void*)fb_addr, fb_size);
-    vfb.ds_start(vfb.addr);
     vfb.unmap();
+    vfb.ds_start(vfb.addr);
+    memcpy((void*)vfb.addr, (void*)fb_addr, fb_size);
   }
 
   void switch_on() {
-    memcpy((void*)fb_addr, (void*)vfb.addr, fb_size);
-    vfb.ds_start(fb_addr);
     vfb.unmap();
+    vfb.ds_start(fb_addr);
+    memcpy((void*)fb_addr, (void*)vfb.addr, fb_size);
   }
 };
 

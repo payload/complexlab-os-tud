@@ -1,3 +1,4 @@
+#include <l4/µpong/SessionServer.hh>
 #include <stdio.h>
 #include <cstring>
 #include <l4/re/env>
@@ -5,8 +6,6 @@
 #include <contrib/libio-io/l4/io/io.h>
 #include <l4/util/port_io.h>
 #include <pthread-l4.h>
-
-#include "SessionServer.hh"
 
 using L4::Cap;
 using L4::Irq;

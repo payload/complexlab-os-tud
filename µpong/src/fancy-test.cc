@@ -1,3 +1,4 @@
+#include <l4/µpong/gfx.hh>
 #include <cstdio>
 #include <cstring>
 #include <l4/re/env>
@@ -11,7 +12,6 @@
 #include <l4/cxx/exceptions>
 #include <l4/cxx/iostream>
 #include <l4/cxx/l4iostream>
-#include "gfx.hh"
 #include <sstream>
 
 using L4::Cap;
