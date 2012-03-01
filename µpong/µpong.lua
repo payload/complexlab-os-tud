@@ -54,6 +54,14 @@ ld:start({
 	    log = { "spammer", "G" },
 	 }, "rom/spammer DEBUG")
 
+ld:start({
+	    caps = {
+	       vesa = fancy:create(0),
+	    },
+	    log = { "pong", "g" },
+	 }, "rom/pong-server DEBUG")
+
+--[[
 local colors = { "0x0000FF00", "0x000000FF" }
 for i=1,2 do
    ld:start({
@@ -72,3 +80,4 @@ for i=1,2 do
 	       log = { "hacky "..i, "r" },
 	    }, "rom/hacky-test");
 end
+]]--
