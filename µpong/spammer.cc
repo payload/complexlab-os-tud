@@ -28,11 +28,11 @@ struct MyHacky : Hacky {
       tv.append_line(new char[1]);
     } else {
       tv.cur_line = tv.lst_line;
-      int len = strlen(tv.cur_line->text) + 1;
+      int len = strlen(tv.cur_line->text) + 2;
       char *text = new char[len];
       strcpy(text, tv.cur_line->text);
-      text[len - 1] = key;
-      text[len] = '\0';
+      text[len - 2] = key;
+      text[len - 1] = '\0';
       delete tv.cur_line->text;
       tv.cur_line->text = text;
     }
