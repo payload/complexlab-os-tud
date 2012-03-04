@@ -1,6 +1,6 @@
-#include <l4/µpong/hacky.hh>
-#include <l4/µpong/gfx.hh>
-#include <l4/µpong/textview.hh>
+#include <l4/µpong/Hacky.hh>
+#include <l4/µpong/Gfx.hh>
+#include <l4/µpong/TextView.hh>
 #include <cstring>
 #include <l4/re/env>
 #include <l4/re/util/object_registry>

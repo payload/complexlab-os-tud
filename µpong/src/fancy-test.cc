@@ -1,4 +1,4 @@
-#include <l4/µpong/gfx.hh>
+#include <l4/µpong/Gfx.hh>
 #include <cstdio>
 #include <cstring>
 #include <l4/re/env>

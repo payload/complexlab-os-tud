@@ -1,5 +1,5 @@
 #include <l4/µpong/SessionServer.hh>
-#include <l4/µpong/hacky.hh>
+#include <l4/µpong/Hacky.hh>
 #include <l4/re/util/video/goos_fb>
 #include <l4/re/util/video/goos_svr>
 #include <l4/re/util/dataspace_svr>

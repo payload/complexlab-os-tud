@@ -106,7 +106,7 @@ Paddle p0(-10, server());
 Paddle p1(20, server());
 */
 
-#include <l4/µpong/hacky.hh>
+#include <l4/µpong/Hacky.hh>
 #include <cstring>
 #include <l4/re/env>
 #include <l4/re/util/object_registry>

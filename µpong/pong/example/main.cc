@@ -11,7 +11,7 @@
 #include <iostream>
 #include <pthread-l4.h>
 
-#include <l4/µpong/hacky.hh>
+#include <l4/µpong/Hacky.hh>
 #include <l4/cxx/iostream>
 #include <l4/re/util/object_registry>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gfx.hh"
+#include "Gfx.hh"
 
 typedef unsigned long ulong;
 
