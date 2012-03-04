@@ -28,7 +28,7 @@ ld:start({
                fb = fb:svr(),
             },
             log = { "fb-drv", "b" },
-         }, "rom/fb-drv -m 0x112")
+         }, "rom/fb-drv -m 0x114")
 
 ld:start({
 	    caps = {
