@@ -16,7 +16,7 @@ ld:start({
             caps = {
                bus    = ps2:svr(),
 	       fbdrv  = fbdrv:svr(),
-               icu    = L4.Env.icu, -- TEST for exclusion
+               icu    = L4.Env.icu,
                sigma0 = sigma0_cap,
             },
             log = { "io", "B" },
