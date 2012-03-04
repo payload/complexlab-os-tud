@@ -6,6 +6,7 @@ local fbdrv = ld:new_channel()
 local fb = ld:new_channel()
 local hacky = ld:new_channel()
 local fancy = ld:new_channel()
+local pong = ld:new_channel()
 
 local sigma0_cap =
    L4.cast(L4.Proto.Factory, L4.Env.sigma0)
@@ -57,9 +58,20 @@ ld:start({
 ld:start({
 	    caps = {
 	       vesa = fancy:create(0),
+	       PongServer = pong:svr(),
 	    },
 	    log = { "pong", "g" },
 	 }, "rom/pong-server DEBUG")
+
+for i=1,2 do
+   ld:start({
+	       caps = {
+		  hacky = hacky:create(0),
+		  pong = pong,
+	       },
+	       log = { "pong "..i, "b" },
+	    }, "rom/µpong DEBUG")
+end
 
 --[[
 local colors = { "0x0000FF00", "0x000000FF" }
