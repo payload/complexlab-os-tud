@@ -54,6 +54,10 @@ int main(int argc, char **argv)
   goos_fb.view_info(&fb_info);
   gfx = new Gfx(goos_fb.attach_buffer(), fb_info);
 
+  if (argc > 1+DEBUG) tv.append_text(argv[1]);
+
+  tv.draw(*gfx);
+
   registry_server.loop();
   return 0;
 }

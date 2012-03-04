@@ -1,8 +1,11 @@
 #pragma once
 
 #include "Gfx.hh"
+#include <string>
+#include <l4/cxx/iostream>
 
 typedef unsigned long ulong;
+using namespace std;
 
 struct Line {
   ulong nr;
@@ -17,6 +20,10 @@ struct Line {
   Line(ulong nr, const char *text, Line *prev, Line *next)
     : nr(nr), prev(prev), next(next), text(text) {}
 };
+
+extern int MALLOC_DEBUG;
+
+#include <string.h>
 
 struct TextView {
   Line *top_line;
@@ -37,6 +44,23 @@ struct TextView {
       lst_line = new Line(++lines, s);
       top_line = lst_line;
       cur_line = lst_line;
+    }
+  }
+
+  void append_text(const char *chars) {
+    unsigned i;
+    unsigned p = 0;
+    string s(chars);
+    while ((i = s.find("\n", p)) != s.npos) {
+      if (i-p == 0)
+	append_line(new char(0));
+      else {
+	char *line = new char[i-p+1];
+	strncpy(line, (char*)((unsigned)chars)+p, i-p);
+	line[i-p] = 0;
+	append_line(line);
+      }
+      p = i+1;
     }
   }
 

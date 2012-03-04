@@ -45,31 +45,39 @@ ld:start({
 	       hacky = hacky:create(0),
 	    },
 	    log = { "fancy", "Y" },
-	 }, "rom/fancy DEBUG")
+	 }, "rom/fancy")
 
-ld:start({
+
+
+local spammer_txt = "µpong\n\
+* switch between framebuffers with F2 and F3\
+* play pong with W, S and I, K\n\n\n"
+ld:startv({
 	    caps = {
 	       fancy = fancy:create(0),
 	       hacky = hacky:create(0),
 	    },
 	    log = { "spammer", "G" },
-	 }, "rom/spammer DEBUG")
+	 }, "rom/spammer", spammer_txt)
+
+
 
 ld:start({
 	    caps = {
 	       vesa = fancy:create(0),
 	       PongServer = pong:svr(),
 	    },
-	    log = { "pong", "g" },
-	 }, "rom/pong-server DEBUG")
-
+	    log = { "pong svr", "g" },
+	 }, "rom/pong-server")
 ld:start({
 	    caps = {
 	       hacky = hacky:create(0),
 	       PongServer = pong,
 	    },
-	    log = { "pong C", "b" },
-	 }, "rom/pong-client DEBUG")
+	    log = { "pong clt", "b" },
+	 }, "rom/pong-client")
+
+
 
 --[[
 local colors = { "0x0000FF00", "0x000000FF" }
