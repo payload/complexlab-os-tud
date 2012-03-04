@@ -11,6 +11,18 @@
 #include <iostream>
 #include <pthread-l4.h>
 
+#include <l4/µpong/hacky.hh>
+#include <l4/cxx/iostream>
+#include <l4/re/util/object_registry>
+
+using namespace L4;
+using namespace L4Re;
+using namespace L4Re::Util;
+
+int DEBUG;
+Registry_server<> registry_server;
+Object_registry *registry = registry_server.registry();
+
 class Paddle
 {
 public:
@@ -20,6 +32,9 @@ public:
   int connect();
   int lifes();
   void move( int pos );
+  
+  bool move_up;
+  bool move_down;
 
 private:
   unsigned long svr;
@@ -59,7 +74,7 @@ Paddle::connect()
 	    {
 	    case L4_IPC_ENOT_EXISTENT:
 	      std::cout << "No paddle server found, retry\n";
-	      l4_sleep(1000);
+	      l4_sleep(100);
 	      s.reset();
 	      break;
 	    default:
@@ -91,7 +106,6 @@ void Paddle::move( int pos )
   L4::Ipc::Iostream s(l4_utcb());
   s << 1UL << pos;
   s.call(pad_cap);
-  l4_sleep(10);
 }
 
 Paddle::Paddle(int speed, unsigned long svr)
@@ -105,29 +119,15 @@ void Paddle::run()
   if (paddle == -1)
     return;
 
-  int pos = 180;
-
-  int c = 0;
-  while(1)
-    {
-      if (c++ >= 500)
-	{
-	  c = 0;
-	  std::cout << '(' << pthread_self() << ") Lifes: " << lifes() << '\n';
-	}
-      move(pos);
-      pos += speed;
-      if (pos<0)
-	{
-	  pos = 0;
-	  speed = -speed;
-	}
-      if (pos>1023)
-	{
-	  pos = 1023;
-	  speed = -speed;
-	}
-    }
+  int pos = 0;
+  for (;;) {
+    //std::cout << '(' << pthread_self() << ") Lifes: " << lifes() << '\n';
+    l4_sleep(10);
+    if (move_up) pos -= speed;
+    if (move_down) pos += speed;
+    pos = pos < 0 ? 0 : pos > 1023 ? 1023 : pos;
+    move(pos);
+  }
 }
 
 static l4_cap_idx_t server()
@@ -139,8 +139,8 @@ static l4_cap_idx_t server()
   return s.cap();
 }
 
-Paddle p0(-10, server());
-Paddle p1(20, server());
+Paddle p0(15, server());
+Paddle p1(15, server());
 
 
 void *thread_fn(void* ptr)
@@ -150,6 +150,16 @@ void *thread_fn(void* ptr)
     return 0;
 }
 
+struct MyHacky : Hacky {
+  void key_event(bool release, l4_uint8_t, char key, bool) {
+    switch (key) {
+    case 'w': p0.move_up = !release; break;
+    case 's': p0.move_down = !release; break;
+    case 'i': p1.move_up = !release; break;
+    case 'k': p1.move_down = !release; break;
+    }
+  }
+};
 
 void Main::run()
 {
@@ -160,9 +170,10 @@ void Main::run()
   pthread_create(&p, NULL, thread_fn, (void*)&p0);
   pthread_create(&q, NULL, thread_fn, (void*)&p1);
 
-  std::cout << "PC: main sleep......\n";
-  l4_sleep_forever();
-
+  MyHacky hacky;
+  registry->register_obj(&hacky);
+  hacky.connect(Env::env()->get_cap<void>("hacky"));
+  registry_server.loop();
 }
 
 int main()

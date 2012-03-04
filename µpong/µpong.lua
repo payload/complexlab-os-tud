@@ -63,15 +63,13 @@ ld:start({
 	    log = { "pong", "g" },
 	 }, "rom/pong-server DEBUG")
 
-for i=1,2 do
-   ld:start({
-	       caps = {
-		  hacky = hacky:create(0),
-		  pong = pong,
-	       },
-	       log = { "pong "..i, "b" },
-	    }, "rom/µpong DEBUG")
-end
+ld:start({
+	    caps = {
+	       hacky = hacky:create(0),
+	       PongServer = pong,
+	    },
+	    log = { "pong C", "b" },
+	 }, "rom/pong-client DEBUG")
 
 --[[
 local colors = { "0x0000FF00", "0x000000FF" }
