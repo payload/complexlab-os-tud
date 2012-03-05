@@ -54,7 +54,9 @@ Paddle::connect()
   L4::Ipc::Iostream s(l4_utcb());
   pad_cap = L4Re::Util::cap_alloc.alloc<void>().cap();
   while (1)
-    {  std::cout << "PC: connect to " << std::hex << svr << "\n";
+    {
+      l4_sleep(1000);
+      std::cout << "PC: connect to " << std::hex << svr << "\n";
       s << 1UL;
       s << L4::Small_buf(pad_cap);
       l4_msgtag_t err = s.call(svr);
