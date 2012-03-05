@@ -122,8 +122,10 @@ void Paddle::run()
     return;
 
   int pos = 0;
+  int c = 0;
   for (;;) {
-    //std::cout << '(' << pthread_self() << ") Lifes: " << lifes() << '\n';
+    if (c++ % 500 == 0)
+      std::cout << '(' << pthread_self() << ") Lifes: " << lifes() << '\n';
     l4_sleep(10);
     if (move_up) pos -= speed;
     if (move_down) pos += speed;
