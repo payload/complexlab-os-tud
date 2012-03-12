@@ -80,6 +80,8 @@ ld:start({
 
 
 --[[
+--not used generally, but to have many more clients, you could include these lines
+
 local colors = { "0x0000FF00", "0x000000FF" }
 for i=1,2 do
    ld:start({
