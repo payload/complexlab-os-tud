@@ -50,9 +50,9 @@ struct Vfb : Dataspace_svr, L4::Server_object {
   void ds_start(l4_addr_t addr) { _ds_start = addr; }
   l4_addr_t ds_start() { return _ds_start; }
 
-  void unmap() {
-    l4_addr_t addr = _ds_start;
-    while (addr < _ds_start + _ds_size) {
+  void unmap(l4_addr_t start) {
+    l4_addr_t addr = start;
+    while (addr < start + _ds_size) {
       Env::env()->task()->unmap(l4_fpage(addr, 21, L4_FPAGE_RWX), L4_FP_OTHER_SPACES);
       addr += 1024 * 2048;
     }
@@ -81,18 +81,6 @@ struct FancyServer : L4Re::Util::Video::Goos_svr, L4::Server_object {
   int dispatch(l4_umword_t o, Iostream &ios) {
     return Goos_svr::dispatch(o, ios);
   }
-
-  void switch_off() {
-    vfb.unmap();
-    vfb.ds_start(vfb.addr);
-    memcpy((void*)vfb.addr, (void*)fb_addr, fb_size);
-  }
-
-  void switch_on() {
-    vfb.unmap();
-    vfb.ds_start(fb_addr);
-    memcpy((void*)fb_addr, (void*)vfb.addr, fb_size);
-  }
 };
 
 SessionServer<FancyServer> session_server(registry);
@@ -100,9 +88,16 @@ SessionServer<FancyServer> session_server(registry);
 void switch_vfb(int i) {
   i %= session_server.sessions.size();
   if (i == cur_vfb) return;
-  if (!session_server.sessions.empty())
-    session_server.sessions[cur_vfb]->switch_off();
-  session_server.sessions[i]->switch_on();
+  Vfb &nxt = session_server.sessions[i]->vfb;
+  if (!session_server.sessions.empty()) {
+    Vfb &cur = session_server.sessions[cur_vfb]->vfb;
+    cur.ds_start(cur.addr);
+    cur.unmap(fb_addr);
+    memcpy((void*)cur.addr, (void*)fb_addr, fb_size);
+  }
+  nxt.ds_start(fb_addr);
+  nxt.unmap(nxt.addr);
+  memcpy((void*)fb_addr, (void*)nxt.addr, fb_size);
   cur_vfb = i;
   if (DEBUG) cout << "CUR VFB " << cur_vfb << "\n";
 }
