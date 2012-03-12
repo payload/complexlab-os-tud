@@ -1,2 +1,0 @@
-requires: l4sys l4re crtn cxx_thread stdlibs libpthread
-maintainer: warg@os.inf.tu-dresden.de

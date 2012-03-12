@@ -1,3 +1,3 @@
-provides:
-requires: libc_be_mem
+provides: hacky fancy
+requires: libc_be_mem libio-io libpthread libstdc++ libgfxbitmap cxx_io cxx_libc_io l4sys l4re crtn cxx_thread stdlibs
 maintainer: Gilbert <s1394474@mail.zih.tu-dresden.de>
