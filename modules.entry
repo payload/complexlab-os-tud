@@ -1,0 +1,19 @@
+entry µpong
+kernel fiasco -serial_esc -jdb_cmd=JS
+roottask moe rom/µpong.lua
+module l4re
+module ned
+module ../pkg/io/config/x86-legacy.devs
+module examples/x86-fb.io
+module ../pkg/io/config/vbus-config.vbus
+module io
+module fb-drv
+module µpong.lua
+module hacky
+module hacky-test
+module fancy
+module fancy-test
+module spammer
+module pong-server
+module pong-client
+#end entry µpong
