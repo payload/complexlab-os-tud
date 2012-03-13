@@ -3,12 +3,7 @@ ifndef L4DIR
   $(error Set L4DIR in this file or as an environment variable)
 endif
 L4DIR := $(shell cd $(L4DIR); pwd)
-
-O ?=
-ifndef O
-  $(error Set O in this file or as an evironment variable)
-endif
-O := $(shell cd $(O); pwd)
+O := $(shell cd $(L4DIR)/../../obj/l4/x86/; pwd)
 
 QEMU_OPTIONS += -serial stdio -sdl
 
